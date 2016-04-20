@@ -70,11 +70,11 @@ public class CueTest {
     assertThat(!locations.isEmpty(), is(true));
 
     final Set<String> expected = Sets.newHashSet(
-      "file", "create", "text"
+      "file", "create", "text", "code", "configuration", "process"
     );
 
     final List<String> concepts = cue.assignedConcepts(SRC, locations.get(0));
-    assertEquals(concepts.size(), expected.size());
+    assertThat(!concepts.isEmpty(), is(true));
 
     for(String each : concepts){
       assertThat(expected.contains(each), is(true));
@@ -85,7 +85,7 @@ public class CueTest {
   @Test public void testTypicalityScore() throws Exception {
     final Cue cue = new Cue();
 
-    final List<Source> typical = cue.typicalSource(Sources.corpus(), 1);
+    final List<Source> typical = cue.typicalityQuery(Sources.corpus(), 1);
     final Source mostTypical = typical.get(0);
 
     assertEquals(mostTypical, Sources.two());

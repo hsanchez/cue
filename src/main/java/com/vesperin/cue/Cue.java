@@ -133,6 +133,8 @@ public class Cue {
   }
 
   /**
+   * Finds the top k most typical implementation of some functionality in a set of
+   * similar implementations of that functionality.
    *
    * Uses the idea of typicality analysis from psychology and cognition science
    * to source code ranking. This ranking is based on a simple typicality measure
@@ -144,14 +146,14 @@ public class Cue {
    * databases (VLDB '07). VLDB Endowment 890-901.
    *
    * @param similarCode a list of source code implementing similar functionality.
-   * @param topK results limit.
+   * @param topK top k most typical implementations.
    * @return a new list of the most typical source code implementing a functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
-  public List<Source> typicalSource(List<Source> similarCode, int topK){
+  public List<Source> typicalityQuery(List<Source> similarCode, int topK){
 
-    Preconditions.checkArgument(topK > 0);
     if(similarCode.isEmpty()) return ImmutableList.of();
+    if(topK <= 0)             return ImmutableList.of();
 
     final Map<Source, Double> T = new HashMap<>();
 
