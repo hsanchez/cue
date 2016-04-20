@@ -1,6 +1,7 @@
 package com.vesperin.cue.text;
 
 import com.google.common.collect.Sets;
+import com.vesperin.cue.utils.Similarity;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -61,7 +62,7 @@ public enum SpellChecker implements WordCorrector {
   }
 
   public static float similarity(String word, String suggestion){
-    return WordCorrector.similarity(word, suggestion);
+    return Similarity.similarityScore(word, suggestion);
   }
 
   public static boolean isStopWord(Set<StopWords> stops, String word){
