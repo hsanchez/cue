@@ -85,23 +85,21 @@ public class Cue {
    */
   private List<String> assignedConcepts(Context context, Location scope, int topK){
 
-    Objects.requireNonNull(context);
-    Objects.requireNonNull(scope);
+    ensureValidInput(context, scope, topK);
 
-    Preconditions.checkArgument(topK > 0);
-
+    // focus on code region
     final Optional<UnitLocation> unitLocation = context.locateUnit(scope).stream().findFirst();
     if(!unitLocation.isPresent()) return ImmutableList.of();
-
     final UnitLocation locatedUnit = unitLocation.get();
 
-    // catch segments in code
-    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
-    locatedUnit.getUnitNode().accept(blockSegmentation);
+    // generate optimal segmentation graph
+    final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
 
-    final SegmentationGraph bsg = blockSegmentation.getBSG();
+    // generate interesting concepts
+    return generateInterestingConcepts(topK, locatedUnit, bsg);
+  }
 
-    // generate non interesting locations
+  private List<String> generateInterestingConcepts(int topK, UnitLocation locatedUnit, SegmentationGraph bsg) {
     final Set<Location> blackList = bsg.blacklist(locatedUnit).stream()
       .collect(Collectors.toSet());
 
@@ -111,8 +109,21 @@ public class Cue {
 
     final WordCounter wordCounter = new WordCounter(extractor.getItems());
 
-
     return wordCounter.mostFrequent(topK);
+  }
+
+  private SegmentationGraph generateSegmentationGraph(UnitLocation locatedUnit) {
+    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
+    locatedUnit.getUnitNode().accept(blockSegmentation);
+
+    return blockSegmentation.getBSG();
+  }
+
+  private static void ensureValidInput(Context context, Location scope, int topK) {
+    Objects.requireNonNull(context);
+    Objects.requireNonNull(scope);
+
+    Preconditions.checkArgument(topK > 0);
   }
 
 }
