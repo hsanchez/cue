@@ -81,4 +81,13 @@ public class CueTest {
     }
 
   }
+
+  @Test public void testTypicalityScore() throws Exception {
+    final Cue cue = new Cue();
+
+    final List<Source> typical = cue.typicalSource(Sources.corpus(), 1);
+    final Source mostTypical = typical.get(0);
+
+    assertEquals(mostTypical, Sources.two());
+  }
 }

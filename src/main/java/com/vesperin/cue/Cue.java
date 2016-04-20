@@ -2,6 +2,7 @@ package com.vesperin.cue;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Doubles;
 import com.vesperin.base.Context;
 import com.vesperin.base.EclipseJavaParser;
 import com.vesperin.base.JavaParser;
@@ -14,16 +15,21 @@ import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
 import com.vesperin.cue.text.WordCounter;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.vesperin.cue.utils.Similarity.similarityScore;
+
 /**
  * @author Huascar Sanchez
  */
 public class Cue {
+  private static final double SMOOTHING_FACTOR = 0.3;
   private final JavaParser parser;
 
   public Cue(){
@@ -124,6 +130,69 @@ public class Cue {
     Objects.requireNonNull(scope);
 
     Preconditions.checkArgument(topK > 0);
+  }
+
+  /**
+   *
+   * Uses the idea of typicality analysis from psychology and cognition science
+   * to source code ranking. This ranking is based on a simple typicality measure
+   * introduced in:
+   *
+   * Ming Hua, Jian Pei, Ada W. C. Fu, Xuemin Lin, and Ho-Fung Leung. 2007.
+   * Efficiently answering top-k typicality queries on large databases.
+   * In Proceedings of the 33rd international conference on Very large
+   * databases (VLDB '07). VLDB Endowment 890-901.
+   *
+   * @param similarCode a list of source code implementing similar functionality.
+   * @param topK results limit.
+   * @return a new list of the most typical source code implementing a functionality.
+   * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
+   */
+  public List<Source> typicalSource(List<Source> similarCode, int topK){
+
+    Preconditions.checkArgument(topK > 0);
+    if(similarCode.isEmpty()) return ImmutableList.of();
+
+    final Map<Source, Double> T = new HashMap<>();
+
+    for(Source code : similarCode){
+      T.put(code, 0.0);
+    }
+    
+    double t1  = 1.0d / (similarCode.size() - 1) * Math.sqrt(2.0 * Math.PI);
+    double t2  = 2.0 * Math.pow(SMOOTHING_FACTOR, 2);
+
+    int N = similarCode.size() - 1;
+    int M = similarCode.size();
+
+    assert N < M;
+
+    for (int idx = 0; idx < N; idx++){
+      for (Source oj : similarCode) {
+
+        final Source oi = similarCode.get(idx);
+
+        double w   = gaussianKernel(t1, t2, oi, oj);
+        double Toi = T.get(oi) + w;
+        double Toj = T.get(oj) + w;
+
+        T.put(oi, Toi);
+        T.put(oi, Toj);
+      }
+    }
+
+    return T.keySet().stream()
+      .sorted((a, b) -> Doubles.compare(T.get(b), T.get(a)))
+      .limit(topK)
+      .collect(Collectors.toList());
+  }
+  
+  private static double gaussianKernel(double t1, double t2, Source oi, Source oj){
+    return t1 * Math.exp(-(score(oi, oj) / t2));
+  }
+
+  private static double score(Source a, Source b){
+    return similarityScore(a.getContent(), b.getContent());
   }
 
 }
