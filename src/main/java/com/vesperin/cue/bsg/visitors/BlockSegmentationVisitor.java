@@ -132,8 +132,10 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
         final List<Block> children = blocks.getCodeBlocks();
 
         if(!children.isEmpty()){
-          outsiders.add(children.get(0));
-          children.get(0).accept(this);
+          if(!visited.contains(children.get(0))){
+            outsiders.add(children.get(0));
+            children.get(0).accept(this);
+          }
         }
       }
 
