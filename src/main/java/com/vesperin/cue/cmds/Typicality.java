@@ -28,7 +28,6 @@ public class Typicality implements CommandRunnable {
   private String target = null;
 
   @Option(name = { "-f", "--files" }, arity = 100, description = "multiple files to test.")
-  @Required
   private List<String> files = null;
 
   @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
