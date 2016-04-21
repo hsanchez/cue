@@ -25,11 +25,11 @@ public class Typicality implements CommandRunnable {
   @Inject HelpOption<Typicality> help;
 
   @Option(name = {"-d", "--directory"}, arity = 1, description = "target directory containing files to test.")
-  private String target;
+  private String target = null;
 
   @Option(name = { "-f", "--files" }, arity = 100, description = "multiple files to test.")
   @Required
-  private List<String> files;
+  private List<String> files = null;
 
   @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
   private int topK = 1;
