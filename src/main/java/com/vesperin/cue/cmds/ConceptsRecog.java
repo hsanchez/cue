@@ -9,10 +9,10 @@ import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
 import javax.inject.Inject;
-import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Huascar Sanchez
@@ -26,6 +26,9 @@ public class ConceptsRecog implements CommandRunnable {
   @Option(name = {"-d", "--directory"}, arity = 1, description = "target directory containing files to test.")
   private String target = null;
 
+  @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
+  private int topK = 10;
+
   @Override public int run() {
     if(!help.showHelpIfRequested()){
       if(target == null) {
@@ -33,21 +36,26 @@ public class ConceptsRecog implements CommandRunnable {
         return -1;
       }
 
-      recognizeConcepts(target);
+      return recognizeConcepts(target, topK);
     }
 
     return 0;
   }
 
-  private static void recognizeConcepts(String target) {
+  private static int recognizeConcepts(String target, int topK) {
     final Path start = Paths.get(target);
-    final List<File> allFiles = IO.collectFiles(start, "java");
+    try {
+      final List<Source> allFiles = IO.collectFiles(start, "java").stream()
+        .map(Sources::from).collect(Collectors.toList());;
 
-    final Cue cue = new Cue();
+      final Cue cue = new Cue();
+      final List<String> concepts = cue.assignedConcepts(allFiles, topK);
 
-    for(File eachFile : allFiles){
-      final Source src = Sources.from(eachFile);
-      System.out.printf("%-32s %s\n", src.getName(), cue.assignedConcepts(src));
+      System.out.println(concepts);
+      return 0;
+    } catch (Exception e){
+      e.printStackTrace(System.err);
+      return -1;
     }
   }
 }
