@@ -47,7 +47,7 @@ public class TokenIterator extends SkeletalVisitor implements Iterable <String> 
           if(" ".equals(eachLabel) || eachLabel.isEmpty() || StopWords.isStopWord(Sets.newHashSet(), eachLabel)) continue;
 
           String currentLabel = eachLabel;
-          if(SpellChecker.onlyConsonants(currentLabel) || !SpellChecker.containsWord(currentLabel)){
+          if(SpellChecker.onlyConsonants(currentLabel) || !SpellChecker.containsWord(currentLabel.toLowerCase())){
             final String newLabel = SpellChecker.suggestCorrection(currentLabel.toLowerCase()).toLowerCase();
 
             if(SpellChecker.similarity(currentLabel, newLabel) > 0.3f){

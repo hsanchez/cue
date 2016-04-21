@@ -1,5 +1,8 @@
 package com.vesperin.cue;
 
+import com.github.rvesse.airline.Cli;
+import com.github.rvesse.airline.builder.CliBuilder;
+import com.github.rvesse.airline.parser.errors.ParseException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Doubles;
@@ -13,7 +16,11 @@ import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.bsg.SegmentationGraph;
 import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
+import com.vesperin.cue.cmds.CommandRunnable;
+import com.vesperin.cue.cmds.ConceptsRecog;
+import com.vesperin.cue.cmds.Typicality;
 import com.vesperin.cue.text.WordCounter;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.vesperin.cue.utils.Similarity.similarityScore;
@@ -42,6 +50,36 @@ public class Cue {
 
   Context parse(Source code){
     return parser.parseJava(code);
+  }
+
+  /**
+   * Determine the concepts (capped to 10 suggestions) that appear in a list of
+   * sources.
+   *
+   * @param sources list of sources to inspect.
+   * @return a new list of guessed concepts.
+   */
+  public List<String> assignedConcepts(List<Source> sources){
+    return assignedConcepts(sources, 10);
+  }
+
+  /**
+   * Determine the concepts that appear in a list of
+   * sources.
+   *
+   * @param sources list of sources to inspect.
+   * @param topK k most frequent concepts in the list of sources.
+   * @return a new list of guessed concepts.
+   */
+  public List<String> assignedConcepts(List<Source> sources, int topK){
+    final WordCounter counter = new WordCounter();
+
+    for(Source each : sources){
+      counter.addAll(assignedConcepts(each));
+    }
+
+    return counter.mostFrequent(topK);
+
   }
 
   /**
@@ -102,12 +140,22 @@ public class Cue {
     final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
 
     // generate interesting concepts
-    return generateInterestingConcepts(topK, locatedUnit, bsg);
-  }
-
-  private List<String> generateInterestingConcepts(int topK, UnitLocation locatedUnit, SegmentationGraph bsg) {
     final Set<Location> blackList = bsg.blacklist(locatedUnit).stream()
       .collect(Collectors.toSet());
+
+    // HACK (Huascar) add main method to black list if one is available
+    // we are not interested in crawling this method.
+    final Predicate<UnitLocation> mainMethod    = u -> "main".equals(((MethodDeclaration)u.getUnitNode()).getName().getIdentifier());
+    final Optional<UnitLocation>  optionalUnit  = context.locateMethods().stream().filter(mainMethod).findFirst();
+
+    if(optionalUnit.isPresent()) {
+      blackList.add(optionalUnit.get());
+    }
+
+    return generateInterestingConcepts(topK, locatedUnit, blackList);
+  }
+
+  private List<String> generateInterestingConcepts(int topK, UnitLocation locatedUnit, Set<Location> blackList) {
 
     // collect frequent words outside the blacklist of locations
     final TokenIterator extractor   = new TokenIterator(blackList);
@@ -195,6 +243,40 @@ public class Cue {
 
   private static double score(Source a, Source b){
     return similarityScore(a.getContent(), b.getContent());
+  }
+
+
+  private static <T extends CommandRunnable> void execute(T cmd) {
+    try {
+      int exitCode = cmd.run();
+      System.out.println();
+      System.out.println("Exiting with Code " + exitCode);
+      System.exit(exitCode);
+    } catch (Throwable e) {
+      System.err.println("Command threw error: " + e.getMessage());
+      e.printStackTrace(System.err);
+    }
+  }
+
+  private static <T extends CommandRunnable> void executeCli(Cli<T> cli, String[] args) {
+    try {
+      T cmd = cli.parse(args);
+      execute(cmd);
+    } catch (ParseException e) {
+      System.err.println("Parser error: " + e.getMessage());
+    } catch (Throwable e) {
+      System.err.println("Unexpected error: " + e.getMessage());
+      e.printStackTrace(System.err);
+    }
+  }
+
+  public static void main(String[] args) {
+    final CliBuilder<CommandRunnable> builder = Cli.<CommandRunnable>builder("cue")
+      .withDescription("Cue CLI")
+      .withCommand(Typicality.class)
+      .withCommand(ConceptsRecog.class);
+
+    executeCli(builder.build(), args);
   }
 
 }

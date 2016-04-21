@@ -59,7 +59,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
       }
 
       final BlockVisitor statements = new BlockVisitor();
-      node.accept(statements);
+      if(!visited.contains(node)) node.accept(statements);
 
 
       final List<Block> children = statements.getCodeBlocks();

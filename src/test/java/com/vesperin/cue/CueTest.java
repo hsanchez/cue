@@ -109,6 +109,17 @@ public class CueTest {
     System.out.println(typical.get(0).getContent());
   }
 
+  @Test public void testMostFrequentConcept() throws Exception {
+    final List<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toList());
+
+    final Cue cue = new Cue();
+    final List<String> concepts = cue.assignedConcepts(files);
+
+    assertThat(concepts.isEmpty(), is(false));
+
+  }
+
   private static List<File> collectJavaFilesInResources() {
     return IO.collectFiles(Paths.get(CueTest.class.getResource("/").getPath()), "java");
   }
