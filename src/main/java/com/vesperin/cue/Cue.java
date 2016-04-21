@@ -5,6 +5,8 @@ import com.github.rvesse.airline.builder.CliBuilder;
 import com.github.rvesse.airline.parser.errors.ParseException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.vesperin.base.Context;
 import com.vesperin.base.EclipseJavaParser;
@@ -20,7 +22,6 @@ import com.vesperin.cue.cmds.CommandRunnable;
 import com.vesperin.cue.cmds.ConceptsRecog;
 import com.vesperin.cue.cmds.Typicality;
 import com.vesperin.cue.text.WordCounter;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,9 +29,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static com.vesperin.cue.bsg.AstUtils.methodDeclaration;
 import static com.vesperin.cue.utils.Similarity.similarityScore;
 
 /**
@@ -68,14 +69,28 @@ public class Cue {
    * sources.
    *
    * @param sources list of sources to inspect.
-   * @param topK k most frequent concepts in the list of sources.
    * @return a new list of guessed concepts.
    */
   public List<String> assignedConcepts(List<Source> sources, int topK){
+    final Set<String> addOns = Sets.newHashSet("main");
+
+    return assignedConcepts(sources, topK, addOns);
+  }
+
+
+  /**
+   * Determine the concepts that appear in a list of
+   * sources.
+   *
+   * @param sources list of sources to inspect.
+   * @param topK k most frequent concepts in the list of sources.
+   * @return a new list of guessed concepts.
+   */
+  public List<String> assignedConcepts(List<Source> sources, int topK, Set<String> ignoredSet){
     final WordCounter counter = new WordCounter();
 
     for(Source each : sources){
-      counter.addAll(assignedConcepts(each));
+      counter.addAll(assignedConcepts(each, ignoredSet));
     }
 
     return counter.mostFrequent(topK);
@@ -92,7 +107,28 @@ public class Cue {
     final Context   context = parse(code);
     final Location  scope   = Locations.locate(code, context.getCompilationUnit());
 
-    return assignedConcepts(context, scope, 10);
+    return assignedConcepts(context, scope, 10, ImmutableSet.of());
+
+  }
+
+  /**
+   * Determine the concepts (capped to 10 suggestions) that appear in a given source code.
+   *
+   * @param code source code to introspect.
+   * @return a new list of guessed concepts.
+   */
+  public List<String> assignedConcepts(Source code, final Set<String> ignoredSet){
+    final Context   context = parse(code);
+    final Location  scope   = Locations.locate(code, context.getCompilationUnit());
+
+    final Set<Location> blackList = context.locateMethods().stream()
+      .filter(m ->
+        ignoredSet.contains(
+          methodDeclaration(m.getUnitNode()).getName().getIdentifier()
+        )
+      ).collect(Collectors.toSet());
+
+    return assignedConcepts(context, scope, 10, blackList);
 
   }
 
@@ -103,7 +139,17 @@ public class Cue {
    * @return a new list of guessed concepts.
    */
   public List<String> assignedConcepts(Source code, Location scope){
-    return assignedConcepts(code, scope, 10);
+    return assignedConcepts(code, scope, ImmutableSet.of());
+  }
+
+  /**
+   * Determine the concepts (capped to 10 suggestions) that appear in a given source code's region.
+   *
+   * @param scope code region of interest.
+   * @return a new list of guessed concepts.
+   */
+  public List<String> assignedConcepts(Source code, Location scope, Set<Location> blackList){
+    return assignedConcepts(code, scope, 10, blackList);
   }
 
   /**
@@ -113,9 +159,9 @@ public class Cue {
    * @param topK number of suggestions to retrieve.
    * @return a new list of guessed concepts.
    */
-  public List<String> assignedConcepts(Source code, Location scope, int topK){
+  public List<String> assignedConcepts(Source code, Location scope, int topK, Set<Location> blackList){
     final Context   context = parse(code);
-    return assignedConcepts(context, scope, topK);
+    return assignedConcepts(context, scope, topK, blackList);
   }
 
 
@@ -127,7 +173,7 @@ public class Cue {
    * @param topK number of suggestions to retrieve.
    * @return a new list of guessed concepts.
    */
-  private List<String> assignedConcepts(Context context, Location scope, int topK){
+  private List<String> assignedConcepts(Context context, Location scope, int topK, Set<Location> blackList){
 
     ensureValidInput(context, scope, topK);
 
@@ -136,20 +182,18 @@ public class Cue {
     if(!unitLocation.isPresent()) return ImmutableList.of();
     final UnitLocation locatedUnit = unitLocation.get();
 
+    // generate interesting concepts
+    return assignedConcepts(locatedUnit, blackList, topK);
+  }
+
+  private List<String> assignedConcepts(UnitLocation locatedUnit, Set<Location> blackAddons, int topK){
     // generate optimal segmentation graph
     final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
-
-    // generate interesting concepts
     final Set<Location> blackList = bsg.blacklist(locatedUnit).stream()
       .collect(Collectors.toSet());
 
-    // HACK (Huascar) add main method to black list if one is available
-    // we are not interested in crawling this method.
-    final Predicate<UnitLocation> mainMethod    = u -> "main".equals(((MethodDeclaration)u.getUnitNode()).getName().getIdentifier());
-    final Optional<UnitLocation>  optionalUnit  = context.locateMethods().stream().filter(mainMethod).findFirst();
-
-    if(optionalUnit.isPresent()) {
-      blackList.add(optionalUnit.get());
+    if(!blackAddons.isEmpty()) {
+      blackList.addAll(blackAddons);
     }
 
     return generateInterestingConcepts(topK, locatedUnit, blackList);

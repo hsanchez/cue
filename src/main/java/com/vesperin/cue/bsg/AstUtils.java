@@ -1,10 +1,13 @@
-package com.vesperin.cue.bsg.visitors;
+package com.vesperin.cue.bsg;
 
 import com.google.common.collect.ImmutableList;
+import com.vesperin.cue.bsg.visitors.LabelVisitor;
+import com.vesperin.cue.bsg.visitors.LinkedNodesVisitor;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.SimpleName;
 
@@ -16,7 +19,7 @@ import java.util.Optional;
 /**
  * @author Huascar Sanchez
  */
-class AstUtils {
+public class AstUtils {
   /**
    * Private constructor for AstUtils.
    */
@@ -31,7 +34,7 @@ class AstUtils {
   private static final int NAME   = FIELD | TYPE;
 
 
-  static Optional<ASTNode> findASTDeclaration(IBinding binding, ASTNode node){
+  public static Optional<ASTNode> findASTDeclaration(IBinding binding, ASTNode node){
     final ASTNode root = node.getRoot();
     if(Objects.isNull(root) || !(root instanceof CompilationUnit)) return Optional.empty();
 
@@ -48,7 +51,7 @@ class AstUtils {
    * @return The list of all nodes that have the same name or are connected to
    *      name's binding (if binding is available)
    */
-  static List<SimpleName> findByNode(ASTNode root, SimpleName name) {
+  public static List<SimpleName> findByNode(ASTNode root, SimpleName name) {
     final IBinding binding = name.resolveBinding();
 
     if (binding != null) {
@@ -149,6 +152,19 @@ class AstUtils {
 
     return linkedBindings.getLinkedNodes();
   }
+
+  /**
+   * Downcast a method node to its method declaration.
+   *
+   * @param node node to downcast.
+   * @return a method declaration
+   */
+  public static MethodDeclaration methodDeclaration(ASTNode node){
+    assert node.getNodeType() == ASTNode.METHOD_DECLARATION;
+
+    return ((MethodDeclaration) node);
+  }
+
 
   private static int getNameNodeProblemKind(IProblem[] problems, SimpleName nameNode) {
     final int nameOffset  = nameNode.getStartPosition();

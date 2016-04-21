@@ -5,6 +5,7 @@ import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.utils.Jdt;
 import com.vesperin.base.visitors.ASTVisitorWithHierarchicalWalk;
+import com.vesperin.cue.bsg.AstUtils;
 import com.vesperin.cue.bsg.BlockSegmentationGraph;
 import com.vesperin.cue.bsg.CodeBlock;
 import com.vesperin.cue.bsg.Segment;
