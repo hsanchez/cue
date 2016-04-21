@@ -42,7 +42,8 @@ libraryDependencies ++= Seq(
    "org.eclipse.jdt" % "org.eclipse.jdt.core" % "3.10.0",
     "com.google.guava" % "guava" % "19.0",
     "com.novocode" % "junit-interface" % "0.11" % "test",
-    "junit" % "junit" % "4.12"
+    "junit" % "junit" % "4.12",
+    "com.github.rvesse" % "airline" % "2.1.0"
 )
 
 assemblyExcludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
@@ -63,7 +64,9 @@ assemblyExcludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
     "org.eclipse.equinox.registry-3.5.101.jar",
     "org.eclipse.jdt.core-3.10.0.jar",
     "org.eclipse.osgi-3.7.1.jar",
-    "org.eclipse.text-3.5.101.jar"
+    "org.eclipse.text-3.5.101.jar",
+    "airline-io-2.1.0.jar",
+    "airline-2.1.0.jar"
   )
 
   cp filter { jar => excludes(jar.data.getName) }

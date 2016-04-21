@@ -1,13 +1,10 @@
-package com.vesperin.cue.bsg.visitors;
+package com.vesperin.cue.bsg;
 
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
-import com.vesperin.cue.bsg.AbstractSegmentationGraph;
-import com.vesperin.cue.bsg.Segment;
-import com.vesperin.cue.bsg.SegmentationGraph;
 
 import java.util.List;
 import java.util.Set;

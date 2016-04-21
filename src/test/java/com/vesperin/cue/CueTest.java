@@ -5,10 +5,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.vesperin.base.Source;
 import com.vesperin.base.locators.UnitLocation;
+import com.vesperin.cue.utils.IO;
+import com.vesperin.cue.utils.Sources;
 import org.junit.Test;
 
+import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -18,7 +23,7 @@ import static org.junit.Assert.assertThat;
  * @author Huascar Sanchez
  */
 public class CueTest {
-  static final Source SRC = Source.from("Foo",
+  private static final Source SRC = Source.from("Foo",
     Joiner.on("\n").join(
       ImmutableList.of(
         "public class Foo {"
@@ -85,9 +90,26 @@ public class CueTest {
   @Test public void testTypicalityScore() throws Exception {
     final Cue cue = new Cue();
 
-    final List<Source> typical = cue.typicalityQuery(Sources.corpus(), 1);
+    final List<Source> typical = cue.typicalityQuery(Code.corpus(), 1);
     final Source mostTypical = typical.get(0);
 
-    assertEquals(mostTypical, Sources.two());
+    assertEquals(mostTypical, Code.two());
+  }
+
+  @Test public void testMostTypicalSortingImplementation() throws Exception {
+    final List<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toList());
+
+    assertThat(!files.isEmpty(), is(true));
+
+    final Cue cue = new Cue();
+    final List<Source> typical = cue.typicalityQuery(files, 1);
+    assertThat(!typical.isEmpty(), is(true));
+
+    System.out.println(typical.get(0).getContent());
+  }
+
+  private static List<File> collectJavaFilesInResources() {
+    return IO.collectFiles(Paths.get(CueTest.class.getResource("/").getPath()), "java");
   }
 }

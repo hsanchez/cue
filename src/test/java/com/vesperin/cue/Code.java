@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * @author Huascar Sanchez
  */
-public class Sources {
+public class Code {
   private static final String ONE = Joiner.on("\n").join(
     ImmutableList.of(
     "public class Fibonacci {"
