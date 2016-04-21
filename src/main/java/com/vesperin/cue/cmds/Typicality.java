@@ -3,7 +3,6 @@ package com.vesperin.cue.cmds;
 import com.github.rvesse.airline.HelpOption;
 import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
-import com.github.rvesse.airline.annotations.restrictions.Required;
 import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
 import com.vesperin.cue.utils.IO;
@@ -27,11 +26,14 @@ public class Typicality implements CommandRunnable {
   @Option(name = {"-d", "--directory"}, arity = 1, description = "target directory containing files to test.")
   private String target = null;
 
-  @Option(name = { "-f", "--files" }, arity = 100, description = "multiple files to test.")
+  @Option(name = { "-f", "--files" }, arity = 100, description = "multiple files to test (100 max).")
   private List<String> files = null;
 
   @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
   private int topK = 1;
+
+  @Option(name = {"-b", "--bandwidth"}, description = "bandwidth parameter.")
+  private double bandwidth = 0.3;
 
   @Override public int run() {
     if(!help.showHelpIfRequested()){
@@ -49,17 +51,17 @@ public class Typicality implements CommandRunnable {
       if(files != null){
 
         generateSourceCode(corpus, files);
-        performTypicalityQuery(corpus, topK);
+        performTypicalityQuery(corpus, bandwidth, topK);
 
       } else {
-        catchAndQuery(corpus, target, topK);
+        catchAndQuery(corpus, target, bandwidth, topK);
       }
     }
 
     return 0;
   }
 
-  private static void catchAndQuery(List<Source> corpus, String target, int topK) {
+  private static void catchAndQuery(List<Source> corpus, String target, double h, int topK) {
     final Path start = Paths.get(target);
     final List<File> allFiles = IO.collectFiles(start, "java");
 
@@ -68,13 +70,13 @@ public class Typicality implements CommandRunnable {
       corpus.add(src);
     }
 
-    performTypicalityQuery(corpus, topK);
+    performTypicalityQuery(corpus, h, topK);
   }
 
-  private static void performTypicalityQuery(List<Source> corpus, int topK) {
+  private static void performTypicalityQuery(List<Source> corpus, double h, int topK) {
     final Cue cue = new Cue();
 
-    final List<Source> result = cue.typicalityQuery(corpus, topK);
+    final List<Source> result = cue.typicalityQuery(corpus, h, topK);
     if(result.isEmpty()){
       System.out.println("No typical source code was found.");
     } else {
