@@ -182,6 +182,22 @@ public class Cue {
 
   /**
    * Finds the top k most typical implementation of some functionality in a set of
+   * similar implementations of that functionality. It uses 0.3 as a default
+   * bandwidth parameter.
+   *
+   * See {@link #typicalityQuery(List, double, int)} for additional details.
+   *
+   * @param similarCode a list of source code implementing similar functionality.
+   * @param topK top k most typical implementations.
+   * @return a new list of the most typical source code implementing a functionality.
+   */
+  public List<Source> typicalityQuery(List<Source> similarCode, int topK){
+    return typicalityQuery(similarCode, SMOOTHING_FACTOR, topK);
+
+  }
+
+  /**
+   * Finds the top k most typical implementation of some functionality in a set of
    * similar implementations of that functionality.
    *
    * Uses the idea of typicality analysis from psychology and cognition science
@@ -194,11 +210,12 @@ public class Cue {
    * databases (VLDB '07). VLDB Endowment 890-901.
    *
    * @param similarCode a list of source code implementing similar functionality.
+   * @param h bandwidth parameter (a.k.a., smoothing factor)
    * @param topK top k most typical implementations.
    * @return a new list of the most typical source code implementing a functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
-  public List<Source> typicalityQuery(List<Source> similarCode, int topK){
+  public List<Source> typicalityQuery(List<Source> similarCode, double h, int topK){
 
     if(similarCode.isEmpty()) return ImmutableList.of();
     if(topK <= 0)             return ImmutableList.of();
@@ -210,7 +227,7 @@ public class Cue {
     }
     
     double t1  = 1.0d / (similarCode.size() - 1) * Math.sqrt(2.0 * Math.PI);
-    double t2  = 2.0 * Math.pow(SMOOTHING_FACTOR, 2);
+    double t2  = 2.0 * Math.pow(h, 2);
 
     int N = similarCode.size() - 1;
     int M = similarCode.size();
@@ -238,7 +255,7 @@ public class Cue {
   }
   
   private static double gaussianKernel(double t1, double t2, Source oi, Source oj){
-    return t1 * Math.exp(-(score(oi, oj) / t2));
+    return t1 * Math.exp(-(Math.pow(score(oi, oj), 2) / t2));
   }
 
   private static double score(Source a, Source b){

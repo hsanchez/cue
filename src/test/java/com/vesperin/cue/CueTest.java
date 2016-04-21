@@ -104,9 +104,19 @@ public class CueTest {
 
     final Cue cue = new Cue();
     final List<Source> typical = cue.typicalityQuery(files, 1);
-    assertThat(!typical.isEmpty(), is(true));
 
-    System.out.println(typical.get(0).getContent());
+    assertThat(!typical.isEmpty(), is(true));
+  }
+
+  @Test public void testMostTypicalSortingWithDiffBandwidth() throws Exception {
+    final List<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toList());
+
+    assertThat(!files.isEmpty(), is(true));
+
+    final Cue cue = new Cue();
+    final List<Source> typical1 = cue.typicalityQuery(files, 0.7, 1);
+    assertThat(!typical1.isEmpty(), is(true));
   }
 
   @Test public void testMostFrequentConcept() throws Exception {
