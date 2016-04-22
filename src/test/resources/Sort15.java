@@ -1,12 +1,12 @@
 import java.util.*;
 import javax.management.relation.*;
+import javax.management.*;
 
 public class Sort15 {
 
   public static void main(String[] a){
     // add our roles to the RoleList
     RoleList libraryList = new RoleList();
-
 
     populateRoleList(libraryList);
 
@@ -20,16 +20,12 @@ public class Sort15 {
 
   private static void populateRoleList(RoleList libraryList){
     // building the owner Role
-    List<String> ownerList = new ArrayList<String>();
-    ownerList.add("Peter");  // can only add owner to an owner role cardinality defined as 1
+    // ObjectName earExpression=new ObjectName
+    List<ObjectName> ownerList = new ArrayList<ObjectName>();
     final Role ownerRole = new Role("owner", ownerList);
 
     // building the book role
-    List<String> bookList = new ArrayList<String>();
-    // we can have between 1 and 4 books more than 4 invalidates out relation and less than 1 invalidates it
-    bookList.add("Book1");
-    bookList.add("Book2");
-    bookList.add("Book3");
+    List<ObjectName> bookList = new ArrayList<ObjectName>();
     Role bookRole = new Role("books", bookList);
 
     libraryList.add(ownerRole);
