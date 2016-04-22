@@ -2,10 +2,12 @@ package com.vesperin.cue;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Floats;
 import com.vesperin.base.Source;
-import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.utils.IO;
+import com.vesperin.cue.utils.Similarity;
 import com.vesperin.cue.utils.Sources;
 import org.junit.Test;
 
@@ -59,26 +61,29 @@ public class CueTest {
       "file", "create", "text", "process", "code", "configuration"
     );
 
-    final List<String> concepts = cue.assignedConcepts(SRC);
+    final List<String> concepts = cue.assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
+
     assertEquals(concepts.size(), expected.size());
 
     for(String each : concepts){
       assertThat(expected.contains(each), is(true));
     }
 
+    final List<String> concepts2 = cue.assignedConcepts(Lists.newArrayList(SRC)).stream().sorted().collect(Collectors.toList());
+
+    assertEquals(concepts, concepts2);
   }
 
   @Test public void testCueCodeRegion() throws Exception {
     final Cue cue = new Cue();
 
-    final List<UnitLocation> locations = cue.parse(SRC).locateMethods();
-    assertThat(!locations.isEmpty(), is(true));
+    final Set<String> names = Sets.newHashSet("processFile");
 
     final Set<String> expected = Sets.newHashSet(
       "file", "create", "text", "code", "configuration", "process"
     );
 
-    final List<String> concepts = cue.assignedConcepts(SRC, locations.get(0));
+    final List<String> concepts = cue.assignedConcepts(SRC, names);
     assertThat(!concepts.isEmpty(), is(true));
 
     for(String each : concepts){
@@ -93,7 +98,7 @@ public class CueTest {
     final List<Source> typical = cue.typicalityQuery(Code.corpus(), 1);
     final Source mostTypical = typical.get(0);
 
-    assertEquals(mostTypical, Code.two());
+    assertEquals(mostTypical, Code.four());
   }
 
   @Test public void testMostTypicalSortingImplementation() throws Exception {
@@ -132,5 +137,14 @@ public class CueTest {
 
   private static List<File> collectJavaFilesInResources() {
     return IO.collectFiles(Paths.get(CueTest.class.getResource("/").getPath()), "java");
+  }
+
+
+  @Test public void testCommutativePropertyOfSimilarity() throws Exception {
+    assertThat(
+      Floats.compare(
+        Similarity.similarityScore("text", "txt"),
+        Similarity.similarityScore("txt", "text")
+      ) == 0, is(true));
   }
 }

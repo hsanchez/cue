@@ -6,7 +6,6 @@ import com.github.rvesse.airline.parser.errors.ParseException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.vesperin.base.Context;
 import com.vesperin.base.EclipseJavaParser;
@@ -19,17 +18,20 @@ import com.vesperin.cue.bsg.SegmentationGraph;
 import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
 import com.vesperin.cue.cmds.CommandRunnable;
-import com.vesperin.cue.cmds.ConceptsRecog;
+import com.vesperin.cue.cmds.Concepts;
 import com.vesperin.cue.cmds.Typicality;
 import com.vesperin.cue.text.WordCounter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.vesperin.cue.bsg.AstUtils.methodDeclaration;
 import static com.vesperin.cue.utils.Similarity.similarityScore;
@@ -49,48 +51,47 @@ public class Cue {
     this.parser = parser;
   }
 
-  Context parse(Source code){
+  private Context parse(Source code){
     return parser.parseJava(code);
   }
 
   /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a list of
+   * Determine the concepts (capped to 10 suggestions) that appear in oi list of
    * sources.
    *
    * @param sources list of sources to inspect.
-   * @return a new list of guessed concepts.
+   * @return oi new list of guessed concepts.
    */
   public List<String> assignedConcepts(List<Source> sources){
     return assignedConcepts(sources, 10);
   }
 
   /**
-   * Determine the concepts that appear in a list of
+   * Determine the concepts that appear in oi list of
    * sources.
    *
    * @param sources list of sources to inspect.
-   * @return a new list of guessed concepts.
+   * @return oi new list of guessed concepts.
    */
   public List<String> assignedConcepts(List<Source> sources, int topK){
-    final Set<String> addOns = Sets.newHashSet("main");
-
-    return assignedConcepts(sources, topK, addOns);
+    return assignedConcepts(sources, topK, ImmutableSet.of());
   }
 
 
   /**
-   * Determine the concepts that appear in a list of
+   * Determine the concepts that appear in oi list of
    * sources.
    *
    * @param sources list of sources to inspect.
    * @param topK k most frequent concepts in the list of sources.
-   * @return a new list of guessed concepts.
+   * @param relevantSet set of relevant method names
+   * @return oi new list of guessed concepts.
    */
-  public List<String> assignedConcepts(List<Source> sources, int topK, Set<String> ignoredSet){
+  public List<String> assignedConcepts(List<Source> sources, int topK, Set<String> relevantSet){
     final WordCounter counter = new WordCounter();
 
     for(Source each : sources){
-      counter.addAll(assignedConcepts(each, ignoredSet));
+      counter.addAll(assignedConcepts(each, relevantSet));
     }
 
     return counter.mostFrequent(topK);
@@ -98,142 +99,97 @@ public class Cue {
   }
 
   /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a given source code.
+   * Determine the concepts (capped to 10 suggestions) that appear in oi given source code.
    *
    * @param code source code to introspect.
-   * @return a new list of guessed concepts.
+   * @return oi new list of guessed concepts.
    */
   public List<String> assignedConcepts(Source code){
-    final Context   context = parse(code);
-    final Location  scope   = Locations.locate(code, context.getCompilationUnit());
-
-    return assignedConcepts(context, scope, 10, ImmutableSet.of());
+    return assignedConcepts(code, ImmutableSet.of());
 
   }
 
   /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a given source code.
+   * Determine the concepts (capped to 10 suggestions) that appear in oi given source code.
    *
    * @param code source code to introspect.
-   * @return a new list of guessed concepts.
+   * @param relevant set of relevant method names. At least one match should exist.
+   * @return oi new list of guessed concepts.
    */
-  public List<String> assignedConcepts(Source code, final Set<String> ignoredSet){
+  public List<String> assignedConcepts(Source code, final Set<String> relevant){
     final Context   context = parse(code);
-    final Location  scope   = Locations.locate(code, context.getCompilationUnit());
 
-    final Set<Location> blackList = context.locateMethods().stream()
-      .filter(m ->
-        ignoredSet.contains(
-          methodDeclaration(m.getUnitNode()).getName().getIdentifier()
-        )
-      ).collect(Collectors.toSet());
+    final List<UnitLocation> unitLocations = new ArrayList<>();
+    if(relevant.isEmpty()){
+      unitLocations.addAll(context.locateUnit(Locations.locate(context.getCompilationUnit())));
+    } else {
+      unitLocations.addAll(
+        context.locateMethods().stream().filter(
+          m -> relevant.contains(
+            methodDeclaration(m.getUnitNode()).getName().getIdentifier()
+          )
+        ).collect(Collectors.toList())
+      );
 
-    return assignedConcepts(context, scope, 10, blackList);
+    }
+
+    final Stream<UnitLocation>    scopeStream   = unitLocations.stream();
+    final Optional<UnitLocation>  optionalScope = scopeStream.findFirst();
+
+    if(!optionalScope.isPresent()) return ImmutableList.of();
+
+    final Location scope = optionalScope.get();
+
+    return assignedConcepts(scope, 10);
 
   }
 
-  /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a given source code's region.
-   *
-   * @param scope code region of interest.
-   * @return a new list of guessed concepts.
-   */
-  public List<String> assignedConcepts(Source code, Location scope){
-    return assignedConcepts(code, scope, ImmutableSet.of());
-  }
+  private List<String> assignedConcepts(Location locatedUnit, int topK){
+    //DONE
+    ensureValidInput(locatedUnit, topK);
 
-  /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a given source code's region.
-   *
-   * @param scope code region of interest.
-   * @return a new list of guessed concepts.
-   */
-  public List<String> assignedConcepts(Source code, Location scope, Set<Location> blackList){
-    return assignedConcepts(code, scope, 10, blackList);
-  }
-
-  /**
-   * Determine the concepts that appear in a given context's region.
-   *
-   * @param scope code region of interest.
-   * @param topK number of suggestions to retrieve.
-   * @return a new list of guessed concepts.
-   */
-  public List<String> assignedConcepts(Source code, Location scope, int topK, Set<Location> blackList){
-    final Context   context = parse(code);
-    return assignedConcepts(context, scope, topK, blackList);
-  }
-
-
-  /**
-   * Determine the concepts that appear in a given context's boundary.
-   *
-   * @param context parsed source code.
-   * @param scope code region of interest.
-   * @param topK number of suggestions to retrieve.
-   * @return a new list of guessed concepts.
-   */
-  private List<String> assignedConcepts(Context context, Location scope, int topK, Set<Location> blackList){
-
-    ensureValidInput(context, scope, topK);
-
-    // focus on code region
-    final Optional<UnitLocation> unitLocation = context.locateUnit(scope).stream().findFirst();
-    if(!unitLocation.isPresent()) return ImmutableList.of();
-    final UnitLocation locatedUnit = unitLocation.get();
-
-    // generate interesting concepts
-    return assignedConcepts(locatedUnit, blackList, topK);
-  }
-
-  private List<String> assignedConcepts(UnitLocation locatedUnit, Set<Location> blackAddons, int topK){
     // generate optimal segmentation graph
     final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
     final Set<Location> blackList = bsg.blacklist(locatedUnit).stream()
       .collect(Collectors.toSet());
 
-    if(!blackAddons.isEmpty()) {
-      blackList.addAll(blackAddons);
-    }
-
     return generateInterestingConcepts(topK, locatedUnit, blackList);
   }
 
-  private List<String> generateInterestingConcepts(int topK, UnitLocation locatedUnit, Set<Location> blackList) {
-
+  private List<String> generateInterestingConcepts(int topK, Location locatedUnit, Set<Location> blackList) {
+    //TODO3
     // collect frequent words outside the blacklist of locations
     final TokenIterator extractor   = new TokenIterator(blackList);
-    locatedUnit.getUnitNode().accept(extractor);
+    ((UnitLocation)locatedUnit).getUnitNode().accept(extractor);
 
     final WordCounter wordCounter = new WordCounter(extractor.getItems());
 
     return wordCounter.mostFrequent(topK);
   }
 
-  private SegmentationGraph generateSegmentationGraph(UnitLocation locatedUnit) {
+  private SegmentationGraph generateSegmentationGraph(Location locatedUnit) {
     final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
-    locatedUnit.getUnitNode().accept(blockSegmentation);
+    ((UnitLocation)locatedUnit).getUnitNode().accept(blockSegmentation);
 
     return blockSegmentation.getBSG();
   }
 
-  private static void ensureValidInput(Context context, Location scope, int topK) {
-    Objects.requireNonNull(context);
+  private static void ensureValidInput(Location scope, int topK) {
     Objects.requireNonNull(scope);
 
     Preconditions.checkArgument(topK > 0);
   }
 
   /**
-   * Finds the top k most typical implementation of some functionality in a set of
-   * similar implementations of that functionality. It uses 0.3 as a default
+   * Finds the top k most typical implementation of some functionality in oi set of
+   * similar implementations of that functionality. It uses 0.3 as oi default
    * bandwidth parameter.
    *
    * See {@link #typicalityQuery(List, double, int)} for additional details.
    *
-   * @param similarCode a list of source code implementing similar functionality.
+   * @param similarCode oi list of source code implementing similar functionality.
    * @param topK top k most typical implementations.
-   * @return a new list of the most typical source code implementing a functionality.
+   * @return oi new list of the most typical source code implementing oi functionality.
    */
   public List<Source> typicalityQuery(List<Source> similarCode, int topK){
     return typicalityQuery(similarCode, SMOOTHING_FACTOR, topK);
@@ -241,11 +197,11 @@ public class Cue {
   }
 
   /**
-   * Finds the top k most typical implementation of some functionality in a set of
+   * Finds the top k most typical implementation of some functionality in oi set of
    * similar implementations of that functionality.
    *
    * Uses the idea of typicality analysis from psychology and cognition science
-   * to source code ranking. This ranking is based on a simple typicality measure
+   * to source code ranking. This ranking is based on oi simple typicality measure
    * introduced in:
    *
    * Ming Hua, Jian Pei, Ada W. C. Fu, Xuemin Lin, and Ho-Fung Leung. 2007.
@@ -253,10 +209,10 @@ public class Cue {
    * In Proceedings of the 33rd international conference on Very large
    * databases (VLDB '07). VLDB Endowment 890-901.
    *
-   * @param similarCode a list of source code implementing similar functionality.
-   * @param h bandwidth parameter (a.k.a., smoothing factor)
+   * @param similarCode oi list of source code implementing similar functionality.
+   * @param h bandwidth parameter (oi.k.oi., smoothing factor)
    * @param topK top k most typical implementations.
-   * @return a new list of the most typical source code implementing a functionality.
+   * @return oi new list of the most typical source code implementing oi functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
   public List<Source> typicalityQuery(List<Source> similarCode, double h, int topK){
@@ -264,6 +220,7 @@ public class Cue {
     if(similarCode.isEmpty()) return ImmutableList.of();
     if(topK <= 0)             return ImmutableList.of();
 
+    final Set<Pair> memoization = new HashSet<>();
     final Map<Source, Double> T = new HashMap<>();
 
     for(Source code : similarCode){
@@ -283,12 +240,21 @@ public class Cue {
 
         final Source oi = similarCode.get(idx);
 
-        double w   = gaussianKernel(t1, t2, oi, oj);
+        final Pair p = new Pair(oi, oj);
+
+        // there is no need to calculate this again
+        if(memoization.contains(p)) {
+          continue;
+        }
+
+        double w   = gaussianKernel(t1, t2, p);
         double Toi = T.get(oi) + w;
         double Toj = T.get(oj) + w;
 
         T.put(oi, Toi);
-        T.put(oi, Toj);
+        T.put(oj, Toj);
+
+        memoization.add(p);
       }
     }
 
@@ -297,15 +263,14 @@ public class Cue {
       .limit(topK)
       .collect(Collectors.toList());
   }
-  
-  private static double gaussianKernel(double t1, double t2, Source oi, Source oj){
-    return t1 * Math.exp(-(Math.pow(score(oi, oj), 2) / t2));
+
+  private static double gaussianKernel(double t1, double t2, Pair pair){
+    return t1 * Math.exp(-(Math.pow(score(pair.oi, pair.oj), 2) / t2));
   }
 
   private static double score(Source a, Source b){
     return similarityScore(a.getContent(), b.getContent());
   }
-
 
   private static <T extends CommandRunnable> void execute(T cmd) {
     try {
@@ -319,6 +284,7 @@ public class Cue {
     }
   }
 
+
   private static <T extends CommandRunnable> void executeCli(Cli<T> cli, String[] args) {
     try {
       T cmd = cli.parse(args);
@@ -331,11 +297,38 @@ public class Cue {
     }
   }
 
+  private static class Pair {
+    Source oi = null;
+    Source oj = null;
+
+    Pair(Source oi, Source oj){
+      this.oi = oi;
+      this.oj = oj;
+    }
+
+    @Override public int hashCode() {
+      return Objects.hashCode(oi.getName()) * Objects.hashCode(oj.getName());
+    }
+
+    @Override public boolean equals(Object obj) {
+      if(!(obj instanceof Pair)) return false;
+
+      final Pair other = (Pair) obj;
+
+      final boolean sameAA = oi.equals(other.oi);
+      final boolean sameAB = oi.equals(other.oj);
+      final boolean sameBA = oj.equals(other.oi);
+      final boolean sameBB = oj.equals(other.oj);
+
+      return (sameAA ||  sameAB || sameBA || sameBB);
+    }
+  }
+
   public static void main(String[] args) {
     final CliBuilder<CommandRunnable> builder = Cli.<CommandRunnable>builder("cue")
       .withDescription("Cue CLI")
       .withCommand(Typicality.class)
-      .withCommand(ConceptsRecog.class);
+      .withCommand(Concepts.class);
 
     executeCli(builder.build(), args);
   }

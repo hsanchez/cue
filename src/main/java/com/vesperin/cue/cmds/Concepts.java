@@ -3,14 +3,12 @@ package com.vesperin.cue.cmds;
 import com.github.rvesse.airline.HelpOption;
 import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
-//import com.google.common.io.Files;
 import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
 import javax.inject.Inject;
-import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,19 +21,19 @@ import java.util.stream.Collectors;
  * @author Huascar Sanchez
  */
 @Command(name = "concepts", description = "Recognizing implied concepts in code")
-public class ConceptsRecog implements CommandRunnable {
+public class Concepts implements CommandRunnable {
 
   @Inject HelpOption<Typicality> help;
 
 
-  @Option(name = {"-d", "--directory"}, arity = 1, description = "target directory containing files to test.")
+  @Option(name = {"-f", "--from"}, arity = 1, description = "extracts concepts from target directory.")
   private String target = null;
 
-  @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
+  @Option(name = {"-k", "--topk"}, description = "k most typical source code.")
   private int topK = 10;
 
-  @Option(name = {"-i", "--ignore"}, arity = 1, description = "file containing a list of method to exclude during processing.")
-  private String ignore = null;
+  @Option(name = {"-m", "--methods"}, arity = 1, description = "relevant method names")
+  private String relevant = null;
 
 
   @Override public int run() {
@@ -45,13 +43,13 @@ public class ConceptsRecog implements CommandRunnable {
         return -1;
       }
 
-      return recognizeConcepts(target, ignore, topK);
+      return conceptAssignment(target, relevant, topK);
     }
 
     return 0;
   }
 
-  private static int recognizeConcepts(String target, String ignore, int topK) {
+  private static int conceptAssignment(String target, String relevant, int topK) {
     final Path start = Paths.get(target);
     try {
       final List<Source> allFiles = IO.collectFiles(start, "java").stream()
@@ -59,17 +57,21 @@ public class ConceptsRecog implements CommandRunnable {
 
       final Cue cue = new Cue();
 
-      if(ignore != null){
-        final Path filePath = Paths.get(ignore);
+      if(relevant != null){
+        final Path filePath = Paths.get(relevant);
         if(Files.exists(filePath)){
           // assumption is that the main method is already in this set
-          final Set<String> ignoredSet = Files.readAllLines(filePath, Charset.defaultCharset()).stream().collect(Collectors.toSet());
-          System.out.println(cue.assignedConcepts(allFiles, topK, ignoredSet));
+          final Set<String> relevantSet = Files.readAllLines(filePath, Charset.defaultCharset())
+            .stream()
+            .collect(Collectors.toSet());
+
+          System.out.println(cue.assignedConcepts(allFiles, topK, relevantSet));
         } else {
-          System.err.println("Ignore file (" + ignore + ") does not exist!");
+          System.err.println("Ignore file (" + relevant + ") does not exist!");
           return -1;
         }
       } else {
+        // the entire body declaration (e.g., all methods) is relevant
         System.out.println(cue.assignedConcepts(allFiles, topK));
       }
 
