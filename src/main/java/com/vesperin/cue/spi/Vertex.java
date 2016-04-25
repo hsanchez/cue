@@ -164,7 +164,7 @@ public interface Vertex<T> {
    */
   default Edge<T> findEdge(Vertex<T> dest) {
     for (Edge<T> e : getOutgoingEdges()) {
-      if (e.getTo() == dest)
+      if (e.getTo().equals(dest))
         return e;
     }
     return null;

@@ -11,14 +11,7 @@ import com.vesperin.cue.bsg.CodeBlock;
 import com.vesperin.cue.bsg.Segment;
 import com.vesperin.cue.bsg.SegmentationGraph;
 import com.vesperin.cue.spi.GraphUtils;
-import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.IMethodBinding;
-import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SimpleType;
-import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.*;
 
 import java.util.HashSet;
 import java.util.List;
@@ -50,52 +43,73 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
   @Override public boolean visit(Block node){
     if(Locations.covers(scope, Locations.locate(node)) || isOutsider(outsiders, node)){
-
-      final CodeBlock from = CodeBlock.of(node);
-      if(dag.getRootVertex() == null){
-        dag.addRootVertex(from);
-        visited.add(node);
-      } else {
-        dag.addVertex(from);
-      }
-
-      final BlockVisitor statements = new BlockVisitor();
-      if(!visited.contains(node)) node.accept(statements);
-
-
-      final List<Block> children = statements.getCodeBlocks();
-      for(ASTNode each : children){
-        if(visited.contains(each)) continue;
-
-        visited.add(each);
-
-        final CodeBlock to = CodeBlock.of(each);
-        dag.addVertex(to);
-
-        if(!GraphUtils.isDescendantOf(from, to)){
-          dag.addEdge(from, to);
-
-          updateSegmentValues(from, to);
-        }
-
-        each.accept(this);
-
-      }
-
+      catchCodeBlock(node);
     }
 
     return super.visit(node);
   }
 
+  @Override public boolean visit(TryStatement node) {
+    if(Locations.covers(scope, Locations.locate(node)) || isOutsider(outsiders, node)){
+      catchCodeBlock(node);
+    }
 
-  private static void updateSegmentValues(Segment from, Segment to){
-    final int depth = to.getDepth();
-    to.setBenefit(to.getBenefit() + calculateBenefit(to.getData(), depth));
+    return super.visit(node);
+  }
+
+  @Override public boolean visit(MethodDeclaration node) {
+    if(Locations.covers(scope, Locations.locate(node)) || isOutsider(outsiders, node)){
+      catchCodeBlock(node);
+    }
+
+    return super.visit(node);
+  }
+
+  private void catchCodeBlock(ASTNode node){
+    final CodeBlock from = CodeBlock.of(node);
+    if(dag.getRootVertex() == null){
+      dag.addRootVertex(from);
+      //visited.add(node);
+    } else {
+      dag.addVertex(from);
+    }
+
+    final BlockVisitor statements = new BlockVisitor();
+    if(!visited.contains(node)) node.accept(statements);
+
+
+    final List<Block> children = statements.getCodeBlocks();
+    for(ASTNode each : children){
+      if(visited.contains(each)) continue;
+
+      visited.add(each);
+
+      final CodeBlock to = CodeBlock.of(each);
+      dag.addVertex(to);
+
+      if(!GraphUtils.isDescendantOf(from, to)){
+        dag.addEdge(from, to);
+
+        updateSegmentValues(from, to);
+      }
+
+      each.accept(this);
+
+    }
+  }
+
+  private void updateSegmentValues(Segment from, Segment to){
+
+    Segment actualFrom = (Segment) dag.getVertex(from.getName());
+    Segment actualTo   = (Segment) dag.getVertex(to.getName());
+
+    final int depth = actualTo.getDepth();
+    actualTo.setBenefit(actualTo.getBenefit() + calculateBenefit(actualTo.getData(), depth));
 
     // distribute weight among children
-    if(isIncluded(from, to)){ // is a segment (to) included in another segment (from)?
-      final double weightChange = (from.getWeight() - to.getWeight());
-      from.setWeight((weightChange < 0.0 ? 0.0 : weightChange));
+    if(isIncluded(actualFrom, actualTo)){ // is a segment (to) included in another segment (from)?
+      final double weightChange = (actualFrom.getWeight() - actualTo.getWeight());
+      actualFrom.setWeight((weightChange < 0.0 ? 0.0 : weightChange));
     }
   }
 
@@ -127,17 +141,40 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
       final Optional<ASTNode> method = AstUtils.findASTDeclaration(methodBinding, node.getRoot());
 
       if(method.isPresent()){
-        final BlockVisitor blocks = new BlockVisitor();
-        method.get().accept(blocks);
 
-        final List<Block> children = blocks.getCodeBlocks();
+        final ASTNode callingBlock = findFirstBlock(node);
 
-        if(!children.isEmpty()){
-          if(!visited.contains(children.get(0))){
-            outsiders.add(children.get(0));
-            children.get(0).accept(this);
-          }
+        final MethodDeclaration declaration = (MethodDeclaration) method.get();
+        final Segment from = (Segment) dag.getVertex(callingBlock.toString());
+
+        final CodeBlock to   = CodeBlock.of(declaration);
+        dag.addVertex(to);
+
+        if(!GraphUtils.isDescendantOf(from, to)){
+          dag.addEdge(from, to);
+
+          updateSegmentValues(from, to);
         }
+
+        if(!visited.contains(declaration)){
+          outsiders.add(declaration);
+          declaration.accept(this);
+        }
+
+        // TODO(Huascar) test this (BSGTest.restBSGFromClass)
+        // why is it that we are getting 7 nodes and 7 edges?
+        // it seems wrong. Try doing this by hand.
+//        final BlockVisitor blocks = new BlockVisitor();
+//        method.get().accept(blocks);
+//
+//        final List<Block> children = blocks.getCodeBlocks();
+//
+//        if(!children.isEmpty()){
+//          if(!visited.contains(children.get(0))){
+//            outsiders.add(children.get(0));
+//            children.get(0).accept(this);
+//          }
+//        }
       }
 
     }
@@ -189,7 +226,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
     return super.visit(node);
   }
 
-  private static ASTNode findFirstBlock(SimpleType node){
+  private static ASTNode findFirstBlock(ASTNode node){
     ASTNode parent = node.getParent();
     while(!(parent instanceof Block)){
       parent = parent.getParent();
