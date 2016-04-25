@@ -51,6 +51,24 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
   @Override public boolean visit(TryStatement node) {
     if(Locations.covers(scope, Locations.locate(node)) || isOutsider(outsiders, node)){
+
+      final ASTNode callingBlock = findFirstBlock(node);
+      final Segment from = (Segment) dag.getVertex(callingBlock.toString());
+
+      CodeBlock to = CodeBlock.of(node);
+      if(dag.containsVertex(to)){
+        to = (CodeBlock) dag.getVertex(node.toString());
+      } else {
+        dag.addVertex(to);
+      }
+
+      if(!GraphUtils.isDescendantOf(from, to)){
+        dag.addEdge(from, to);
+
+        updateSegmentValues(from, to);
+      }
+
+
       catchCodeBlock(node);
     }
 
@@ -66,7 +84,11 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
   }
 
   private void catchCodeBlock(ASTNode node){
-    final CodeBlock from = CodeBlock.of(node);
+    CodeBlock from = CodeBlock.of(node);
+    if(dag.containsVertex(from)){
+      from = (CodeBlock) dag.getVertex(node.toString());
+    }
+
     if(dag.getRootVertex() == null){
       dag.addRootVertex(from);
       //visited.add(node);
@@ -79,13 +101,18 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
 
     final List<Block> children = statements.getCodeBlocks();
-    for(ASTNode each : children){
+    for(Block each : children){
       if(visited.contains(each)) continue;
 
       visited.add(each);
 
-      final CodeBlock to = CodeBlock.of(each);
-      dag.addVertex(to);
+      CodeBlock to = CodeBlock.of(each);
+      if(dag.containsVertex(to)){
+        to = (CodeBlock) dag.getVertex(each.toString());
+      } else {
+        dag.addVertex(to);
+      }
+
 
       if(!GraphUtils.isDescendantOf(from, to)){
         dag.addEdge(from, to);
@@ -160,21 +187,6 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
           outsiders.add(declaration);
           declaration.accept(this);
         }
-
-        // TODO(Huascar) test this (BSGTest.restBSGFromClass)
-        // why is it that we are getting 7 nodes and 7 edges?
-        // it seems wrong. Try doing this by hand.
-//        final BlockVisitor blocks = new BlockVisitor();
-//        method.get().accept(blocks);
-//
-//        final List<Block> children = blocks.getCodeBlocks();
-//
-//        if(!children.isEmpty()){
-//          if(!visited.contains(children.get(0))){
-//            outsiders.add(children.get(0));
-//            children.get(0).accept(this);
-//          }
-//        }
       }
 
     }

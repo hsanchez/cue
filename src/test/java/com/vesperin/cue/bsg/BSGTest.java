@@ -87,7 +87,7 @@ public class BSGTest {
 
     final SegmentationGraph graph = blockSegmentation.getBSG();
     assertThat(graph.getVertices().size() == 7, is(true));
-    assertThat(graph.getEdges().size() == 7, is(true));
+    assertThat(graph.getEdges().size() == 8, is(true));
 
   }
 
