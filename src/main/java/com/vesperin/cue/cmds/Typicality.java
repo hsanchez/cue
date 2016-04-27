@@ -23,11 +23,14 @@ public class Typicality implements CommandRunnable {
 
   @Inject HelpOption<Typicality> help;
 
-  @Option(name = {"-d", "--directory"}, arity = 1, description = "target directory containing files to test.")
-  private String target = null;
+  @Option(name = { "-t", "--targets" }, arity = 100, description = "multiple target files to test (100 max).")
+  private List<String> targets = null;
 
-  @Option(name = { "-f", "--files" }, arity = 100, description = "multiple files to test (100 max).")
-  private List<String> files = null;
+  @Option(name = {"-f", "--from"}, arity = 1, description = "focus in entries in target file.")
+  private String from = null;
+
+  @Option(name = {"-d", "--directory"}, arity = 1, description = "directory containing files to check.")
+  private String directory = null;
 
   @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
   private int topK = 1;
@@ -37,39 +40,50 @@ public class Typicality implements CommandRunnable {
 
   @Override public int run() {
     if(!help.showHelpIfRequested()){
-      if(files == null && target == null) {
+      if(emptyEntries(directory, from, targets)) {
         System.err.println("Please use a valid option (see -help for information).");
         return -1;
       }
 
-      if(files != null && target != null) {
+      if(containsAll(directory, from, targets)) {
         System.err.println("Please use only one option at a time (not both).");
         return -1;
       }
 
       final List<Source> corpus = new ArrayList<>();
-      if(files != null){
+      if(targets != null){
 
-        generateSourceCode(corpus, files);
+        Sources.populate(corpus, targets);
         performTypicalityQuery(corpus, bandwidth, topK);
 
       } else {
-        catchAndQuery(corpus, target, bandwidth, topK);
+        if(from != null){
+          catchAndQuery(corpus, from, bandwidth, topK);
+        } else {
+          catchDirAndQuery(corpus, directory, bandwidth, topK);
+        }
       }
     }
 
     return 0;
   }
 
-  private static void catchAndQuery(List<Source> corpus, String target, double h, int topK) {
+  private static void catchDirAndQuery(List<Source> corpus, String target, double h, int topK) {
     final Path start = Paths.get(target);
-    final List<File> allFiles = IO.collectFiles(start, "java");
-
+    final List<File> allFiles = IO.collectFiles(start, "java", "test", "Test");
     for(File each : allFiles){
       final Source src = Sources.from(each);
       corpus.add(src);
     }
 
+    performTypicalityQuery(corpus, h, topK);
+  }
+
+  private static void catchAndQuery(List<Source> corpus, String methodsFile, double h, int topK) {
+    final Path start = Paths.get(methodsFile);
+    final List<String> allLines = IO.readLines(start);
+
+    Sources.populate(corpus, allLines);
     performTypicalityQuery(corpus, h, topK);
   }
 
@@ -93,10 +107,11 @@ public class Typicality implements CommandRunnable {
     }
   }
 
-  private static void generateSourceCode(List<Source> corpus, List<String> files) {
-    for (String path : files){
-      final Path eachPath = Paths.get(path);
-      corpus.add(Sources.from(eachPath.toFile()));
-    }
+  private static boolean containsAll(String directory, String from, List<String> targets){
+    return directory != null && from != null && targets != null;
+  }
+
+  private static boolean emptyEntries(String directory, String from, List<String> targets){
+    return directory == null && from == null && targets == null;
   }
 }
