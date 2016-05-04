@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -83,8 +84,11 @@ public class CueTest {
       "file", "create", "text", "code", "configuration", "process"
     );
 
-    final List<String> concepts = cue.assignedConcepts(SRC, names);
+    final Set<String> concepts = cue.assignedConcepts(SRC, names).stream()
+      .collect(Collectors.toSet());
     assertThat(!concepts.isEmpty(), is(true));
+
+    assertEquals(expected, concepts);
 
     for(String each : concepts){
       assertThat(expected.contains(each), is(true));
@@ -95,7 +99,8 @@ public class CueTest {
   @Test public void testTypicalityScore() throws Exception {
     final Cue cue = new Cue();
 
-    final List<Source> typical = cue.typicalityQuery(Code.corpus(), 1);
+    final Set<String> relevant = new HashSet<>();
+    final List<Source> typical = cue.typicalityQuery(Code.corpus(), relevant, 1);
     final Source mostTypical = typical.get(0);
 
     assertEquals(mostTypical, Code.four());
@@ -107,8 +112,10 @@ public class CueTest {
 
     assertThat(!files.isEmpty(), is(true));
 
+    final Set<String> relevant = new HashSet<>();
+
     final Cue cue = new Cue();
-    final List<Source> typical = cue.typicalityQuery(files, 1);
+    final List<Source> typical = cue.typicalityQuery(files, relevant, 1);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -119,8 +126,10 @@ public class CueTest {
 
     assertThat(!files.isEmpty(), is(true));
 
+    final Set<String> relevant = new HashSet<>();
+
     final Cue cue = new Cue();
-    final List<Source> typical1 = cue.typicalityQuery(files, 0.7, 1);
+    final List<Source> typical1 = cue.typicalityQuery(files, relevant, 0.7, 1);
     assertThat(!typical1.isEmpty(), is(true));
   }
 
@@ -141,10 +150,17 @@ public class CueTest {
 
 
   @Test public void testCommutativePropertyOfSimilarity() throws Exception {
+
     assertThat(
       Floats.compare(
         Similarity.similarityScore("text", "txt"),
         Similarity.similarityScore("txt", "text")
+      ) == 0, is(true));
+
+    assertThat(
+      Floats.compare(
+        Similarity.normalizeDistance("text", "txt"),
+        Similarity.normalizeDistance("txt", "text")
       ) == 0, is(true));
   }
 }

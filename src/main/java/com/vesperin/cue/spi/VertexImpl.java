@@ -2,6 +2,7 @@ package com.vesperin.cue.spi;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Huascar Sanchez
@@ -67,7 +68,8 @@ public class VertexImpl<T> implements Vertex<T> {
   }
 
   @Override public boolean equals(Object o) {
-    return Vertex.class.isInstance(o) && getData().equals(((Vertex)o).getData());
+    final boolean sameData = Objects.equals(getData(), ((Vertex)o).getData());
+    return Vertex.class.isInstance(o) && sameData;
   }
 
   @Override public int hashCode() {

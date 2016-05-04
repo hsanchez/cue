@@ -122,8 +122,8 @@ public class GraphUtils {
    */
   public static <T> boolean isDescendantOf(Vertex<T> child, Vertex<T> parent) {
 
-    final Deque<Vertex<T>> stack = new LinkedList<Vertex<T>>();
-    stack.push(child);
+    final Deque<Vertex<T>> stack = new LinkedList<>();
+    if(child != null) stack.push(child);
 
     final Set<Vertex<T>> visited = Sets.newLinkedHashSet();
 

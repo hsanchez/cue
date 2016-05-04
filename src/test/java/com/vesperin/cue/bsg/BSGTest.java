@@ -6,6 +6,7 @@ import com.vesperin.base.JavaParser;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
+import com.vesperin.cue.bsg.visitors.SegmentationVisitor;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.junit.Test;
 
@@ -85,9 +86,33 @@ public class BSGTest {
     final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
+    final SegmentationVisitor segmentationVisitor = new SegmentationVisitor(locatedUnit);
+    locatedUnit.getUnitNode().accept(segmentationVisitor);
+
+
+    assertNotNull(segmentationVisitor.getBSG());
+
     final SegmentationGraph graph = blockSegmentation.getBSG();
     assertNotNull(graph);
 
+  }
+
+  @Test public void testNewSegmentationVisitor() throws Exception {
+    final Context context = CONTEXT.get(TRY_CATCH);
+    final List<UnitLocation> locatedUnitList = context.locateMethods().stream()
+      .filter(method("main"))
+      .collect(Collectors.toList());
+    final UnitLocation locatedUnit = locatedUnitList.get(0);
+    assertNotNull(locatedUnit);
+
+    final SegmentationVisitor segmentationVisitor = new SegmentationVisitor(locatedUnit);
+    locatedUnit.getUnitNode().accept(segmentationVisitor);
+
+    final SegmentationGraph graph = segmentationVisitor.getBSG();
+
+    assertNotNull(graph);
+    assertThat(graph.getVertices().size() == 5, is(true));
+    assertThat(graph.getEdges().size() == 6, is(true));
   }
 
   static Predicate<UnitLocation> method(final String name){

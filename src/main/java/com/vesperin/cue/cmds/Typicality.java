@@ -3,6 +3,7 @@ package com.vesperin.cue.cmds;
 import com.github.rvesse.airline.HelpOption;
 import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
+import com.google.common.base.Strings;
 import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
 import com.vesperin.cue.utils.IO;
@@ -10,16 +11,25 @@ import com.vesperin.cue.utils.Sources;
 
 import javax.inject.Inject;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
 
 /**
  * @author Huascar Sanchez
  */
 @Command(name = "typical", description = "Finds the top k most typical implementation")
 public class Typicality implements CommandRunnable {
+
+  private static final String TYPICAL_SET_FILE_NAME = "typicalset.txt";
 
   @Inject HelpOption<Typicality> help;
 
@@ -53,8 +63,8 @@ public class Typicality implements CommandRunnable {
       final List<Source> corpus = new ArrayList<>();
       if(targets != null){
 
-        Sources.populate(corpus, targets);
-        performTypicalityQuery(corpus, bandwidth, topK);
+        final Set<String> relevant = Sources.populate(corpus, targets);
+        performTypicalityQuery(corpus, relevant, bandwidth, topK);
 
       } else {
         if(from != null){
@@ -76,33 +86,50 @@ public class Typicality implements CommandRunnable {
       corpus.add(src);
     }
 
-    performTypicalityQuery(corpus, h, topK);
+    performTypicalityQuery(corpus, new HashSet<>(), h, topK);
   }
 
   private static void catchAndQuery(List<Source> corpus, String methodsFile, double h, int topK) {
     final Path start = Paths.get(methodsFile);
     final List<String> allLines = IO.readLines(start);
 
-    Sources.populate(corpus, allLines);
-    performTypicalityQuery(corpus, h, topK);
+    final Set<String> relevant = Sources.populate(corpus, allLines);
+    performTypicalityQuery(corpus, relevant, h, topK);
   }
 
-  private static void performTypicalityQuery(List<Source> corpus, double h, int topK) {
+  private static void performTypicalityQuery(List<Source> corpus, Set<String> relevant, double h, int topK) {
     final Cue cue = new Cue();
 
-    final List<Source> result = cue.typicalityQuery(corpus, h, topK);
+    final List<Source> result = cue.typicalityQuery(corpus, relevant, h, topK);
     if(result.isEmpty()){
       System.out.println("No typical source code was found.");
     } else {
-      for(Source each : result){
 
-        final String sourceName = each.getName();
+      try {
+        final Path    newFile = Paths.get(TYPICAL_SET_FILE_NAME);
+        Files.deleteIfExists(newFile);
 
-        final String className = sourceName.contains(File.separator)
-          ? sourceName.substring(sourceName.lastIndexOf(File.separator), sourceName.length())
-          : "....";
+        for(Source each : result){
 
-        System.out.printf("%-32s %s\n", each.getName(), ("public class " + className));
+          final String  snippet = cue.pullCode(each, relevant);
+          if(!Strings.isNullOrEmpty(snippet)){
+            final List<String> lines = new ArrayList<>();
+            lines.add(each.getName() + ":");
+            lines.addAll(Sources.contentToLines(snippet));
+
+            Files.write(
+              newFile,
+              lines,
+              CREATE, APPEND
+            );
+          }
+
+        }
+
+        System.out.printf("%-32s\n", newFile.toFile().getAbsolutePath());
+
+      } catch (IOException e){
+        throw new RuntimeException(e);
       }
     }
   }

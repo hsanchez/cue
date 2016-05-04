@@ -5,6 +5,8 @@ import com.vesperin.cue.spi.DirectedGraph;
 import org.eclipse.jdt.core.dom.ASTNode;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 /**
@@ -13,6 +15,22 @@ import java.util.List;
  * @author Huascar Sanchez
  */
 public interface SegmentationGraph extends DirectedGraph <ASTNode> {
+
+  /**
+   * Returns the list of valid locations (i.e., locations we are interested in)
+   * for targeted typicality and concept extraction.
+   *
+   * @param scope the current of scope provided by some user.
+   * @return a new list of valid locations.
+   */
+  default List<Location> whitelist(Location scope) {
+    final Set<Location> blackSet = blacklist(scope).stream().collect(Collectors.toSet());
+    return getVertices().stream()
+      .map(v -> ((Segment)v).getLocation())
+      .filter(l -> !blackSet.contains(l))
+      .collect(Collectors.toList());
+  }
+
   /**
    * Returns the non-informative (irrelevant to some capacity) segments
    * in this graph for the given capacity.

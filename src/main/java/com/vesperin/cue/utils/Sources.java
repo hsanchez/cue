@@ -1,5 +1,6 @@
 package com.vesperin.cue.utils;
 
+import com.google.common.base.Splitter;
 import com.google.common.io.Files;
 import com.vesperin.base.Source;
 
@@ -8,10 +9,12 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -76,5 +79,28 @@ public class Sources {
     }
 
     return relevant;
+  }
+
+
+  /**
+   * Splits the content of a file into separate lines.
+   *
+   * @param content The content to split.
+   * @return a List of all lines in the content string.
+   */
+  public static List<String> contentToLines(String content) {
+    return normalize(
+      Splitter.on(System.getProperty("line.separator")).split(content)
+    );
+  }
+
+  private static List<String> normalize(Iterable<String> docs){
+    final List<String> n = new ArrayList<>();
+    for(String each : docs){
+      // normalize line endings
+      n.add(each.replaceAll("\r\n", "\n"));
+    }
+
+    return n;
   }
 }

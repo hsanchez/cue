@@ -15,7 +15,7 @@ import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.bsg.SegmentationGraph;
-import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
+import com.vesperin.cue.bsg.visitors.SegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
 import com.vesperin.cue.cmds.CommandRunnable;
 import com.vesperin.cue.cmds.Concepts;
@@ -41,6 +41,7 @@ import static com.vesperin.cue.utils.Similarity.similarityScore;
  */
 public class Cue {
   private static final double SMOOTHING_FACTOR = 0.3;
+  private static final String NOTHING = "";
   private final JavaParser parser;
 
   public Cue(){
@@ -124,13 +125,8 @@ public class Cue {
       unitLocations.addAll(context.locateUnit(Locations.locate(context.getCompilationUnit())));
     } else {
       unitLocations.addAll(
-        context.locateMethods().stream().filter(
-          m -> relevant.contains(
-            methodDeclaration(m.getUnitNode()).getName().getIdentifier()
-          )
-        ).collect(Collectors.toList())
+        locateRelevantMethods(context, relevant)
       );
-
     }
 
     final Stream<UnitLocation>    scopeStream   = unitLocations.stream();
@@ -142,6 +138,14 @@ public class Cue {
 
     return assignedConcepts(scope, 10);
 
+  }
+
+  private static List<UnitLocation> locateRelevantMethods(Context context, final Set<String> relevant){
+    return context.locateMethods().stream().filter(
+      m -> relevant.contains(
+        methodDeclaration(m.getUnitNode()).getName().getIdentifier()
+      )
+    ).collect(Collectors.toList());
   }
 
   private List<String> assignedConcepts(Location locatedUnit, int topK){
@@ -157,7 +161,6 @@ public class Cue {
   }
 
   private List<String> generateInterestingConcepts(int topK, Location locatedUnit, Set<Location> blackList) {
-    //TODO3
     // collect frequent words outside the blacklist of locations
     final TokenIterator extractor   = new TokenIterator(blackList);
     ((UnitLocation)locatedUnit).getUnitNode().accept(extractor);
@@ -168,10 +171,10 @@ public class Cue {
   }
 
   private SegmentationGraph generateSegmentationGraph(Location locatedUnit) {
-    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
-    ((UnitLocation)locatedUnit).getUnitNode().accept(blockSegmentation);
+    final SegmentationVisitor visitor = new SegmentationVisitor(locatedUnit);
+    ((UnitLocation)locatedUnit).getUnitNode().accept(visitor);
 
-    return blockSegmentation.getBSG();
+    return visitor.getBSG();
   }
 
   private static void ensureValidInput(Location scope, int topK) {
@@ -185,14 +188,14 @@ public class Cue {
    * similar implementations of that functionality. It uses 0.3 as oi default
    * bandwidth parameter.
    *
-   * See {@link #typicalityQuery(List, double, int)} for additional details.
+   * See {@link #typicalityQuery(List, Set, double, int)} for additional details.
    *
    * @param similarCode oi list of source code implementing similar functionality.
    * @param topK top k most typical implementations.
    * @return oi new list of the most typical source code implementing oi functionality.
    */
-  public List<Source> typicalityQuery(List<Source> similarCode, int topK){
-    return typicalityQuery(similarCode, SMOOTHING_FACTOR, topK);
+  public List<Source> typicalityQuery(List<Source> similarCode, Set<String> relevant, int topK){
+    return typicalityQuery(similarCode, relevant, SMOOTHING_FACTOR, topK);
 
   }
 
@@ -215,7 +218,7 @@ public class Cue {
    * @return oi new list of the most typical source code implementing oi functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
-  public List<Source> typicalityQuery(List<Source> similarCode, double h, int topK){
+  public List<Source> typicalityQuery(List<Source> similarCode, Set<String> relevant, double h, int topK){
 
     if(similarCode.isEmpty()) return ImmutableList.of();
     if(topK <= 0)             return ImmutableList.of();
@@ -262,6 +265,29 @@ public class Cue {
       .sorted((a, b) -> Doubles.compare(T.get(b), T.get(a)))
       .limit(topK)
       .collect(Collectors.toList());
+  }
+
+  /**
+   * Pulls the code of some method of interest.
+   *
+   * @param code source file
+   * @param relevant relevant method names
+   * @return the method snippet.
+   */
+  public String pullCode(Source code, Set<String> relevant){
+    return pullCode(parse(code), relevant);
+  }
+
+  private static String pullCode(Context context, Set<String> relevant){
+
+    final List<UnitLocation>  unitLocations = locateRelevantMethods(context, relevant);
+
+    if(unitLocations.isEmpty()){
+      final UnitLocation location = unitLocations.get(0);
+      return location.getUnitNode().toString();
+    }
+
+    return NOTHING;
   }
 
   private static double gaussianKernel(double t1, double t2, Pair pair){

@@ -1,12 +1,14 @@
 package com.vesperin.cue.bsg;
 
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,13 +24,17 @@ public class BlockSegmentationGraph extends AbstractSegmentationGraph implements
     super();
   }
 
+
+
   @Override public List<Location> blacklist(int capacity) {
+    if(capacity <= 3) return ImmutableList.of();
     return generateBlackList(this, capacity);
   }
 
   private static List<Location> generateBlackList(BlockSegmentationGraph graph, int capacity) {
     final List<Segment> allSegments = Lists.newLinkedList(
       graph.getVertices().stream()
+        .filter(v -> !(Objects.equals(v, graph.getRootVertex())))
         .map(v -> (Segment) v)
         .collect(Collectors.toList())
     );
@@ -46,8 +52,8 @@ public class BlockSegmentationGraph extends AbstractSegmentationGraph implements
 
     // add vertices values
     for( int n = 1; n <= N; n++){
-      profit[n] = ((Segment)graph.getVertex(n - 1)).getBenefit();
-      weight[n] = ((Segment)graph.getVertex(n - 1)).getWeight();
+      profit[n] = ((Segment)graph.getVertex(n)).getBenefit();
+      weight[n] = ((Segment)graph.getVertex(n)).getWeight();
     }
 
     double[][]  opt = new double [N + 1][W + 1];
@@ -82,7 +88,7 @@ public class BlockSegmentationGraph extends AbstractSegmentationGraph implements
     final Set<Segment> keep = Sets.newLinkedHashSet();
     for (int n = 1; n <= N; n++) {
       if (take[n]) {
-        keep.add(((Segment)graph.getVertex(n - 1)));
+        keep.add(((Segment)graph.getVertex(n)));
       }
     }
 
