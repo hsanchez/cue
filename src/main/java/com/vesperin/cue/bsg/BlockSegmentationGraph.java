@@ -1,127 +1,195 @@
 package com.vesperin.cue.bsg;
 
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.vesperin.base.locations.Location;
-import com.vesperin.base.locations.Locations;
+import com.vesperin.cue.spi.DirectedGraph;
+import com.vesperin.cue.spi.Vertex;
+import org.eclipse.jdt.core.dom.ASTNode;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+
 /**
+ * Block Segmentation graph. A block segmentation graph is a directed acyclic graph
+ * G = (V, E), where V is the code blocks nodes (Segments) and E is composition relations
+ * (or edges) between those blocks.
+ *
  * @author Huascar Sanchez
  */
-public class BlockSegmentationGraph extends AbstractSegmentationGraph implements SegmentationGraph {
+public interface BlockSegmentationGraph extends DirectedGraph <ASTNode> {
 
   /**
-   * Creates a new BSG object.
+   * Adds a segment to the graph.
+   *
+   * @param segment the non-null segment to add
+   * @return true if the segment was added; false otherwise.
    */
-  public BlockSegmentationGraph(){
-    super();
+  default boolean add(Segment segment){
+    return addVertex(Objects.requireNonNull(segment));
   }
 
-
-
-  @Override public List<Location> blacklist(int capacity) {
-    if(capacity <= 3) return ImmutableList.of();
-    return generateBlackList(this, capacity);
-  }
-
-  private static List<Location> generateBlackList(BlockSegmentationGraph graph, int capacity) {
-    final List<Segment> allSegments = Lists.newLinkedList(
-      graph.getVertices().stream()
-        .filter(v -> !(Objects.equals(v, graph.getRootVertex())))
-        .map(v -> (Segment) v)
-        .collect(Collectors.toList())
+  /**
+   * Adds the root of this graph.
+   *
+   * @param segment the non-null root segment.
+   */
+  default void addRoot(Segment segment){
+    addRootVertex(
+      Objects.requireNonNull(segment)
     );
+  }
 
-    final int N = allSegments.size();
+  /**
+   * Establish a composition relation between two segments in the graph.
+   *
+   * @param from the whole segment
+   * @param to the part to be included in the whole segment.
+   * @return true if the relation was established; false otherwise.
+   * @throws IllegalArgumentException if from/to are not segments in the graph
+   */
+  default boolean connects(Segment from, Segment to) throws
+    IllegalArgumentException {
+    return addEdge(from, to);
+  }
 
-    // if single Block node, then return empty list
-    if(N == 1) return Lists.newArrayList();
+  /**
+   * Establish a composition relation between two segments in the graph.
+   *
+   * @param from the whole segment
+   * @param to the part to be included in the whole segment.
+   * @param cost the relation's weight/cost
+   * @return true if the relation was established; false otherwise.
+   * @throws IllegalArgumentException if from/to are not segments in the graph
+   */
+  default boolean connects(Segment from, Segment to, int cost) throws
+    IllegalArgumentException {
+    return addEdge(from, to, cost);
+  }
 
-    @SuppressWarnings("UnnecessaryLocalVariable")
-    final int W = capacity;
+  /**
+   * Test if a segment is in the graph.
+   *
+   * @param v the segment to test.
+   * @return true if the segment is in the graph; false otherwise.
+   */
+  default boolean contains(Segment v){
+    return containsVertex(v);
+  }
 
-    double[] profit = new double[N + 1];
-    double[] weight = new double[N + 1];
+  /**
+   * Tests if both segments are connected by checking if the whole segment
+   * covers the part segment.
+   *
+   * @param whole the whole segment
+   * @param part the part that should be included in the whole segment.
+   * @return true if the whole segment covers the part segment; false otherwise.
+   */
+  default boolean covers(Segment whole, Segment part){
+    return containsEdge(whole, part);
+  }
 
-    // add vertices values
-    for( int n = 1; n <= N; n++){
-      profit[n] = ((Segment)graph.getVertex(n)).getBenefit();
-      weight[n] = ((Segment)graph.getVertex(n)).getWeight();
-    }
+  /**
+   * Disconnects two segments in the graph.
+   *
+   * @param from the whole segment
+   * @param to the part segment to be removed from the whole segment.
+   * @return true if the segments are disconnected; false otherwise.
+   */
+  default boolean disconnects(Segment from, Segment to){
+    return removeEdge(from, to);
+  }
 
-    double[][]  opt = new double [N + 1][W + 1];
-    boolean[][] sol = new boolean[N + 1][W + 1];
-
-    for(int n = 1; n <= N; n++){
-      for(int w = 1; w <= W; w++){
-        // don't take item n
-        double option1 = opt[n-1][w];
-
-        // take item n
-        double option2 = Double.NEGATIVE_INFINITY;
-        if (weight[n] <= w) {
-          int weightReduction = (int)(w - weight[n]);
-          option2 = profit[n] + opt[n-1][weightReduction];
-        }
-
-        // select better of two options only if there is a precedence relation
-        // between item n and n - 1
-        opt[n][w] = Math.max(option1, option2);
-        sol[n][w] = (option2 > option1) && isPrecedenceConstraintMaintained(opt, n, w, graph);
-      }
-    }
-
-    // determine which items to take
-    boolean[] take = new boolean[N+1];
-    for (int n = N, w = W; n > 0; n--) {
-      if (sol[n][w]) { take[n] = true;  w = (int)(w - weight[n]); }
-      else           { take[n] = false;                    }
-    }
-
-    final Set<Segment> keep = Sets.newLinkedHashSet();
-    for (int n = 1; n <= N; n++) {
-      if (take[n]) {
-        keep.add(((Segment)graph.getVertex(n)));
-      }
-    }
-
-    allSegments.removeAll(keep);
-
-    final List<Location> locations = Lists.newLinkedList();
-    locations.addAll(
-      allSegments.stream()
-        .map(foldable -> Locations.locate(foldable.getData()))
-        .collect(Collectors.toList())
-    );
-
-    return locations;
+  /**
+   * Returns the list of valid locations (i.e., locations we are interested in)
+   * for targeted typicality and concept extraction.
+   *
+   * @param withinScope the current of scope provided by some user.
+   * @return a new list of valid locations.
+   */
+  default List<Location> relevantLocations(Location withinScope) {
+    final Set<Location> blackSet = irrelevantLocations(withinScope).stream().collect(Collectors.toSet());
+    return getVertices().stream()
+      .map(v -> ((Segment)v).getLocation())
+      .filter(l -> !blackSet.contains(l))
+      .collect(Collectors.toList());
   }
 
 
-  private static boolean isPrecedenceConstraintMaintained(
-    double[][] opt, int i, int j,
-    BlockSegmentationGraph graph) {
-
-
-    final Segment parent = (Segment) graph.getVertex(i - 1);
-    final Segment child = (graph.size() == i
-      ? null
-      : (Segment) graph.getVertex(i)
-    );
-
-    // a graph made of a single node implies the following:
-    // - the single node is the root
-    // - no precedence constraints can be enforced since it has not parent and no children
-    final boolean singleNode    = graph.size() == 1;
-    final boolean pass          = singleNode && graph.isRootVertex(parent) && child == null;
-
-    return  (pass) || (opt[i][j] != opt[i - 1][j] && parent.hasEdge(child));
+  /**
+   * Returns the segment matching a given name.
+   *
+   * @param name the name of the segment.
+   * @return the segment or null if the element
+   *  is not in the segmentation graph.
+   */
+  default Segment segmentBy(String name){
+    return Optional.ofNullable(getVertex(name))
+      .map(v -> (Segment)v)
+      .orElse(null);
   }
+
+  /**
+   * Returns the list of segments contained in this graph.
+   *
+   * @return a list of segments in the segmentation graph.
+   */
+  default List<Segment> segments(){
+    return getVertices().stream()
+      .map(v -> (Segment) v)
+      .collect(Collectors.toList());
+  }
+
+  /**
+   * Returns the root segment (if exists), otherwise returns a null
+   * segment.
+   *
+   * @return the root segment.
+   */
+  default Segment rootSegment(){
+    return Optional.ofNullable(getRootVertex())
+      .map(v -> (Segment)v)
+      .orElse(null);
+  }
+
+  /**
+   * Removes a segment from the graph
+   *
+   * @param s the segment to remove
+   * @return true if the segment was removed; false otherwise.
+   */
+  default boolean remove(Segment s){
+    return removeVertex(s);
+  }
+
+  /**
+   * Returns the non-informative (irrelevant to some capacity) segments
+   * in this graph for the given capacity.
+   *
+   * @param capacity segmentation factor.
+   * @return a list of segment locations.
+   */
+  List<Location> irrelevantLocations(int capacity);
+
+  /**
+   * Returns the non-informative (irrelevant to some capacity) segments
+   * in this graph for the given scope.
+   *
+   * @param forScope the scope from where the capacity is inferred.
+   *                 The capacity value is simply our segmentation factor.
+   * @return a list of segment locations.
+   */
+  default List<Location> irrelevantLocations(Location forScope){
+    return irrelevantLocations(
+      (
+        Math.abs(
+          forScope.getEnd().getLine() - forScope.getStart().getLine()
+        ) + 1
+      )
+    );
+  }
+
+  @Override String toString();
 }

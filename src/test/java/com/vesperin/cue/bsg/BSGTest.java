@@ -51,7 +51,7 @@ public class BSGTest {
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     // the method declaration should have zero..or least two
-    final SegmentationGraph graph = blockSegmentation.getBSG();
+    final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
     assertThat(graph.getVertices().size() == 7, is(true));
     assertThat(graph.getEdges().size() == 8, is(true));
 //    assertThat(graph.getVertices().size() == 6, is(true));
@@ -68,7 +68,7 @@ public class BSGTest {
     final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
-    final SegmentationGraph graph = blockSegmentation.getBSG();
+    final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
     assertThat(graph.getVertices().size() == 7, is(true));
     assertThat(graph.getEdges().size() == 8, is(true));
   }
@@ -90,9 +90,9 @@ public class BSGTest {
     locatedUnit.getUnitNode().accept(segmentationVisitor);
 
 
-    assertNotNull(segmentationVisitor.getBSG());
+    assertNotNull(segmentationVisitor.getBlockSegmentationGraph());
 
-    final SegmentationGraph graph = blockSegmentation.getBSG();
+    final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
     assertNotNull(graph);
 
   }
@@ -108,7 +108,7 @@ public class BSGTest {
     final SegmentationVisitor segmentationVisitor = new SegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(segmentationVisitor);
 
-    final SegmentationGraph graph = segmentationVisitor.getBSG();
+    final BlockSegmentationGraph graph = segmentationVisitor.getBlockSegmentationGraph();
 
     assertNotNull(graph);
     assertThat(graph.getVertices().size() == 5, is(true));

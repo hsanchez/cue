@@ -30,6 +30,7 @@ import static java.nio.file.StandardOpenOption.CREATE;
 public class Typicality implements CommandRunnable {
 
   private static final String TYPICAL_SET_FILE_NAME = "typicalset.txt";
+  private static final Cue    ENGINE                = new Cue();
 
   @Inject HelpOption<Typicality> help;
 
@@ -48,6 +49,9 @@ public class Typicality implements CommandRunnable {
   @Option(name = {"-b", "--bandwidth"}, description = "bandwidth parameter.")
   private double bandwidth = 0.3;
 
+  @Option(name = {"-e", "--echo"}, description = "print results on screen.")
+  private boolean onScreen = false;
+
   @Override public int run() {
     if(!help.showHelpIfRequested()){
       if(emptyEntries(directory, from, targets)) {
@@ -64,13 +68,18 @@ public class Typicality implements CommandRunnable {
       if(targets != null){
 
         final Set<String> relevant = Sources.populate(corpus, targets);
-        performTypicalityQuery(corpus, relevant, bandwidth, topK);
+        performTypicalityQuery(corpus, relevant);
 
       } else {
         if(from != null){
-          catchAndQuery(corpus, from, bandwidth, topK);
+          catchAndQuery(corpus);
         } else {
-          catchDirAndQuery(corpus, directory, bandwidth, topK);
+          if(directory == null) {
+            System.err.println("missing -d or --directory option");
+            return -1;
+          } else {
+            catchDirAndQuery(corpus, directory);
+          }
         }
       }
     }
@@ -78,7 +87,7 @@ public class Typicality implements CommandRunnable {
     return 0;
   }
 
-  private static void catchDirAndQuery(List<Source> corpus, String target, double h, int topK) {
+  private void catchDirAndQuery(List<Source> corpus, String target) {
     final Path start = Paths.get(target);
     final List<File> allFiles = IO.collectFiles(start, "java", "test", "Test");
     for(File each : allFiles){
@@ -86,47 +95,58 @@ public class Typicality implements CommandRunnable {
       corpus.add(src);
     }
 
-    performTypicalityQuery(corpus, new HashSet<>(), h, topK);
+    performTypicalityQuery(corpus, new HashSet<>());
   }
 
-  private static void catchAndQuery(List<Source> corpus, String methodsFile, double h, int topK) {
-    final Path start = Paths.get(methodsFile);
+  private void catchAndQuery(List<Source> corpus) {
+    final Path start = Paths.get(from);
     final List<String> allLines = IO.readLines(start);
 
     final Set<String> relevant = Sources.populate(corpus, allLines);
-    performTypicalityQuery(corpus, relevant, h, topK);
+    performTypicalityQuery(corpus, relevant);
   }
 
-  private static void performTypicalityQuery(List<Source> corpus, Set<String> relevant, double h, int topK) {
-    final Cue cue = new Cue();
+  private void performTypicalityQuery(List<Source> corpus, Set<String> relevant) {
+    final Cue cue = ENGINE;
 
-    final List<Source> result = cue.typicalityQuery(corpus, relevant, h, topK);
+    final List<Source> result = cue.typicalityQuery(corpus, relevant, bandwidth, topK);
     if(result.isEmpty()){
       System.out.println("No typical source code was found.");
     } else {
 
       try {
-        final Path    newFile = Paths.get(TYPICAL_SET_FILE_NAME);
+        final Path newFile = Paths.get(TYPICAL_SET_FILE_NAME);
         Files.deleteIfExists(newFile);
 
         for(Source each : result){
 
-          final String  snippet = cue.pullCode(each, relevant);
+          final String snippet = cue.pullCode(each, relevant);
           if(!Strings.isNullOrEmpty(snippet)){
-            final List<String> lines = new ArrayList<>();
-            lines.add(each.getName() + ":");
-            lines.addAll(Sources.contentToLines(snippet));
 
-            Files.write(
-              newFile,
-              lines,
-              CREATE, APPEND
-            );
+            if(!onScreen) {
+              final List<String> lines = new ArrayList<>();
+              lines.add(each.getName() + ":");
+              lines.addAll(Sources.contentToLines(snippet));
+
+              Files.write(
+                newFile,
+                lines,
+                CREATE, APPEND
+              );
+            } else {
+              Files.deleteIfExists(newFile);
+              System.out.println(each.getName());
+              System.out.println(snippet);
+              System.out.println();
+            }
+
           }
 
         }
 
-        System.out.printf("%-32s\n", newFile.toFile().getAbsolutePath());
+        if(!onScreen){
+          System.out.printf("%-32s\n", newFile.toFile().getAbsolutePath());
+        }
 
       } catch (IOException e){
         throw new RuntimeException(e);

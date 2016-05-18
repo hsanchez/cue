@@ -14,12 +14,13 @@ import com.vesperin.base.Source;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.SegmentationGraph;
+import com.vesperin.cue.bsg.BlockSegmentationGraph;
 import com.vesperin.cue.bsg.visitors.SegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
 import com.vesperin.cue.cmds.CommandRunnable;
 import com.vesperin.cue.cmds.Concepts;
 import com.vesperin.cue.cmds.Typicality;
+import com.vesperin.cue.spi.SourceSelection;
 import com.vesperin.cue.text.WordCounter;
 
 import java.util.ArrayList;
@@ -153,8 +154,8 @@ public class Cue {
     ensureValidInput(locatedUnit, topK);
 
     // generate optimal segmentation graph
-    final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
-    final Set<Location> blackList = bsg.blacklist(locatedUnit).stream()
+    final BlockSegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
+    final Set<Location> blackList = bsg.irrelevantLocations(locatedUnit).stream()
       .collect(Collectors.toSet());
 
     return generateInterestingConcepts(topK, locatedUnit, blackList);
@@ -170,11 +171,11 @@ public class Cue {
     return wordCounter.mostFrequent(topK);
   }
 
-  private SegmentationGraph generateSegmentationGraph(Location locatedUnit) {
+  private BlockSegmentationGraph generateSegmentationGraph(Location locatedUnit) {
     final SegmentationVisitor visitor = new SegmentationVisitor(locatedUnit);
     ((UnitLocation)locatedUnit).getUnitNode().accept(visitor);
 
-    return visitor.getBSG();
+    return visitor.getBlockSegmentationGraph();
   }
 
   private static void ensureValidInput(Location scope, int topK) {
@@ -226,8 +227,11 @@ public class Cue {
     final Set<Pair> memoization = new HashSet<>();
     final Map<Source, Double> T = new HashMap<>();
 
+    final Map<String, String> summaries = new HashMap<>();
+
     for(Source code : similarCode){
       T.put(code, 0.0);
+      summaries.put(code.getName(), segmentCode(code, relevant));
     }
     
     double t1  = 1.0d / (similarCode.size() - 1) * Math.sqrt(2.0 * Math.PI);
@@ -250,7 +254,7 @@ public class Cue {
           continue;
         }
 
-        double w   = gaussianKernel(t1, t2, p);
+        double w   = gaussianKernel(t1, t2, p, summaries);
         double Toi = T.get(oi) + w;
         double Toj = T.get(oj) + w;
 
@@ -282,7 +286,7 @@ public class Cue {
 
     final List<UnitLocation>  unitLocations = locateRelevantMethods(context, relevant);
 
-    if(unitLocations.isEmpty()){
+    if(!unitLocations.isEmpty()){
       final UnitLocation location = unitLocations.get(0);
       return location.getUnitNode().toString();
     }
@@ -290,12 +294,39 @@ public class Cue {
     return NOTHING;
   }
 
-  private static double gaussianKernel(double t1, double t2, Pair pair){
-    return t1 * Math.exp(-(Math.pow(score(pair.oi, pair.oj), 2) / t2));
+  private String segmentCode(Source code, Set<String> relevant){
+    final Context context = parse(code);
+    final List<UnitLocation> singleton = locateRelevantMethods(context, relevant);
+
+    if(!singleton.isEmpty()){
+      final UnitLocation location = singleton.get(0);
+
+      final SegmentationVisitor visitor = new SegmentationVisitor(location);
+      location.getUnitNode().accept(visitor);
+
+      final BlockSegmentationGraph graph = visitor.getBlockSegmentationGraph();
+
+      final SourceSelection selection = new SourceSelection(
+        graph.relevantLocations(location)
+      );
+
+      return selection.toCode();
+    }
+
+    return NOTHING;
   }
 
-  private static double score(Source a, Source b){
-    return similarityScore(a.getContent(), b.getContent());
+  private static double gaussianKernel(double t1, double t2, Pair pair, Map<String, String> summaries){
+    return t1 * Math.exp(-(Math.pow(score(pair.oi, pair.oj, summaries), 2) / t2));
+  }
+
+  private static double score(Source a, Source b, Map<String, String> summaries){
+    // Note: this current implementation uses informative code blocks as the
+    // contents from where the similarity score will be calculated. If we want to
+    // calculate this score using each source file's entire content, then we must use:
+    // similarityScore(a.getContent(), b.getContent());
+    // Otherwise, just keep using the code below:
+    return similarityScore(summaries.get(a.getName()), summaries.get(b.getName()));
   }
 
   private static <T extends CommandRunnable> void execute(T cmd) {

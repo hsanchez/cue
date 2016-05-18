@@ -8,8 +8,8 @@ import com.vesperin.base.visitors.ASTVisitorWithHierarchicalWalk;
 import com.vesperin.cue.bsg.AstUtils;
 import com.vesperin.cue.bsg.BlockSegmentationGraph;
 import com.vesperin.cue.bsg.CodeBlock;
+import com.vesperin.cue.bsg.DirectedBlockSegmentationGraph;
 import com.vesperin.cue.bsg.Segment;
-import com.vesperin.cue.bsg.SegmentationGraph;
 import com.vesperin.cue.spi.GraphUtils;
 import org.eclipse.jdt.core.dom.*;
 
@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
+ * TODO delete after exhaustive testing,.. its replacement is SegmentationVisitor
  * @author Huascar Sanchez
  */
 public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
@@ -27,7 +28,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
   private final Set<ASTNode> outsiders;
   private final Set<ASTNode> visited;
-  private final BlockSegmentationGraph dag = new BlockSegmentationGraph();
+  private final DirectedBlockSegmentationGraph dag = new DirectedBlockSegmentationGraph();
 
   /**
    * Scoped code segmentation step.
@@ -53,17 +54,17 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
     if(Locations.covers(scope, Locations.locate(node)) || isOutsider(outsiders, node)){
 
       final ASTNode callingBlock = findFirstBlock(node);
-      final Segment from = (Segment) dag.getVertex(callingBlock.toString());
+      final Segment from = dag.segmentBy(callingBlock.toString());
 
-      CodeBlock to = CodeBlock.of(node);
-      if(dag.containsVertex(to)){
-        to = (CodeBlock) dag.getVertex(node.toString());
+      Segment to = CodeBlock.of(node);
+      if(dag.contains(to)){
+        to = dag.segmentBy(node.toString());
       } else {
         dag.addVertex(to);
       }
 
       if(!GraphUtils.isDescendantOf(from, to)){
-        dag.addEdge(from, to);
+        dag.connects(from, to);
 
         updateSegmentValues(from, to);
       }
@@ -84,16 +85,15 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
   }
 
   private void catchCodeBlock(ASTNode node){
-    CodeBlock from = CodeBlock.of(node);
-    if(dag.containsVertex(from)){
-      from = (CodeBlock) dag.getVertex(node.toString());
+    Segment from = CodeBlock.of(node);
+    if(dag.contains(from)){
+      from = dag.segmentBy(node.toString());
     }
 
-    if(dag.getRootVertex() == null){
-      dag.addRootVertex(from);
-      //visited.add(node);
+    if(dag.rootSegment() == null){
+      dag.addRoot(from);
     } else {
-      dag.addVertex(from);
+      dag.add(from);
     }
 
     final BlockVisitor statements = new BlockVisitor();
@@ -106,16 +106,16 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
       visited.add(each);
 
-      CodeBlock to = CodeBlock.of(each);
-      if(dag.containsVertex(to)){
-        to = (CodeBlock) dag.getVertex(each.toString());
+      Segment to = CodeBlock.of(each);
+      if(dag.contains(to)){
+        to = dag.segmentBy(each.toString());
       } else {
-        dag.addVertex(to);
+        dag.add(to);
       }
 
 
       if(!GraphUtils.isDescendantOf(from, to)){
-        dag.addEdge(from, to);
+        dag.connects(from, to);
 
         updateSegmentValues(from, to);
       }
@@ -127,8 +127,8 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
   private void updateSegmentValues(Segment from, Segment to){
 
-    Segment actualFrom = (Segment) dag.getVertex(from.getName());
-    Segment actualTo   = (Segment) dag.getVertex(to.getName());
+    Segment actualFrom = dag.segmentBy(from.getName());
+    Segment actualTo   = dag.segmentBy(to.getName());
 
     final int depth = actualTo.getDepth();
     actualTo.setBenefit(actualTo.getBenefit() + calculateBenefit(actualTo.getData(), depth));
@@ -172,13 +172,13 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
         final ASTNode callingBlock = findFirstBlock(node);
 
         final MethodDeclaration declaration = (MethodDeclaration) method.get();
-        final Segment from = (Segment) dag.getVertex(callingBlock.toString());
+        final Segment from = dag.segmentBy(callingBlock.toString());
 
-        final CodeBlock to   = CodeBlock.of(declaration);
-        dag.addVertex(to);
+        final Segment to   = CodeBlock.of(declaration);
+        dag.add(to);
 
         if(!GraphUtils.isDescendantOf(from, to)){
-          dag.addEdge(from, to);
+          dag.connects(from, to);
 
           updateSegmentValues(from, to);
         }
@@ -199,7 +199,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
       if(isTypeDeclarationStatement(node)){
         final Optional<ASTNode> declaration = AstUtils.findASTDeclaration(node.resolveBinding(), node);
-        // todo fix this ugly code
+        // todo fix this BAD BAD code
         final TypeDeclaration typeDeclaration = declaration.isPresent() ? (TypeDeclaration) declaration.get() : null;
 
         if(!Objects.isNull(typeDeclaration)){
@@ -217,13 +217,13 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
             // as one segment. Moreover, we don't have to visit its declaration.
             if(!typeDeclaration.isPackageMemberTypeDeclaration()){
               final ASTNode callingBlock = findFirstBlock(node);
-              final Segment from = (Segment) dag.getVertex(callingBlock.toString());
+              final Segment from = dag.segmentBy(callingBlock.toString());
 
-              final CodeBlock to   = CodeBlock.of(typeDeclaration);
-              dag.addVertex(to);
+              final Segment to = CodeBlock.of(typeDeclaration);
+              dag.add(to);
 
               if(!GraphUtils.isDescendantOf(from, to)){
-                dag.addEdge(from, to);
+                dag.connects(from, to);
 
                 updateSegmentValues(from, to);
               }
@@ -259,7 +259,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
       if (!TypeDeclaration.class.isInstance(declaration)) return false;
 
       final TypeDeclaration found = (TypeDeclaration) declaration;
-      // todo(Huascar) test whether we can handle anonymous class declarations
+      // TODO test whether we can handle anonymous class declarations
       return !found.isPackageMemberTypeDeclaration() || found.isMemberTypeDeclaration();
 
     }
@@ -282,14 +282,14 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
           (AstUtils.findByNode(root, eachName).size()) - 1 /*declaration*/
         );
 
-        b += size / depth;
+        b += (size / depth);
       }
     }
 
     return b;
   }
 
-  public SegmentationGraph getBSG(){
+  public BlockSegmentationGraph getBlockSegmentationGraph(){
     return dag;
   }
 

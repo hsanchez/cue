@@ -6,10 +6,10 @@ import com.vesperin.base.locations.Locations;
 import com.vesperin.base.utils.Jdt;
 import com.vesperin.base.visitors.ASTVisitorWithHierarchicalWalk;
 import com.vesperin.cue.bsg.AstUtils;
-import com.vesperin.cue.bsg.BlockSegmentationGraph;
+import com.vesperin.cue.bsg.DirectedBlockSegmentationGraph;
 import com.vesperin.cue.bsg.CodeBlock;
 import com.vesperin.cue.bsg.Segment;
-import com.vesperin.cue.bsg.SegmentationGraph;
+import com.vesperin.cue.bsg.BlockSegmentationGraph;
 import com.vesperin.cue.spi.GraphUtils;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
@@ -35,7 +35,7 @@ public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
 
   private final Set<ASTNode> outsiders;
   private final Set<ASTNode> visited;
-  private final BlockSegmentationGraph dag;
+  private final DirectedBlockSegmentationGraph dag;
 
   /**
    * Scoped code segmentation step.
@@ -46,7 +46,7 @@ public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
     this.scope = Preconditions.checkNotNull(scope);
     this.outsiders = new HashSet<>();
     this.visited   = new HashSet<>();
-    this.dag       = new BlockSegmentationGraph();
+    this.dag       = new DirectedBlockSegmentationGraph();
   }
 
 
@@ -296,7 +296,7 @@ public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
     }
   }
 
-  private static void updateSegmentValues(BlockSegmentationGraph dag, Segment from, Segment to){
+  private static void updateSegmentValues(DirectedBlockSegmentationGraph dag, Segment from, Segment to){
 
     Segment actualFrom = castVertex(dag, from);
     Segment actualTo   = castVertex(dag, to);
@@ -311,7 +311,7 @@ public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
     }
   }
 
-  private static Segment castVertex(BlockSegmentationGraph dag, Segment other){
+  private static Segment castVertex(DirectedBlockSegmentationGraph dag, Segment other){
     return (Segment) dag.getVertex(Objects.requireNonNull(other).getName());
   }
 
@@ -358,7 +358,7 @@ public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
     return false;
   }
 
-  public SegmentationGraph getBSG(){
+  public BlockSegmentationGraph getBlockSegmentationGraph(){
     return dag;
   }
 }

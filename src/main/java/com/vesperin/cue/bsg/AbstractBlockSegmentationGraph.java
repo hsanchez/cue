@@ -2,7 +2,6 @@ package com.vesperin.cue.bsg;
 
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
-import com.vesperin.cue.spi.DirectedAcyclicGraph;
 import com.vesperin.cue.spi.DirectedGraph;
 import com.vesperin.cue.spi.Edge;
 import com.vesperin.cue.spi.Vertex;
@@ -14,100 +13,94 @@ import java.util.stream.Collectors;
 /**
  * @author Huascar Sanchez
  */
-public abstract class AbstractSegmentationGraph implements SegmentationGraph {
+abstract class AbstractBlockSegmentationGraph implements BlockSegmentationGraph {
   private static final Ordering<Segment> BY_DEPTH = new Ordering<Segment>() {
     public int compare(Segment left, Segment right) {
       return Ints.compare(left.getDepth(), right.getDepth());
     }
   };
 
-  private final DirectedGraph<ASTNode> directedGraph;
-
   /**
-   * Construct a new AbstractSegmentationGraph object using a
-   * directed acyclic graph as default implementation.
+   * Construct a new AbstractBlockSegmentationGraph object. Implementors of
+   * this class should call this constructor.
    */
-  protected AbstractSegmentationGraph(){
-    this(new DirectedAcyclicGraph<>());
-  }
+  AbstractBlockSegmentationGraph(){}
 
-  /**
-   * Construct a new AbstractSegmentationGraph object.
-   *
-   * @param directedGraph a directed graph backing up this BSG.
-   */
-  protected AbstractSegmentationGraph(DirectedGraph<ASTNode> directedGraph){
-    this.directedGraph = directedGraph;
-  }
+
+  protected abstract DirectedGraph<ASTNode> getDirectedGraph();
+
 
   @Override public boolean addVertex(Vertex<ASTNode> v) {
-    return this.directedGraph.addVertex(v);
+    return getDirectedGraph().addVertex(v);
   }
 
   @Override public void addRootVertex(Vertex<ASTNode> root) {
-    this.directedGraph.addRootVertex(root);
+    getDirectedGraph().addRootVertex(root);
   }
 
   @Override public boolean addEdge(Vertex<ASTNode> from, Vertex<ASTNode> to) throws IllegalArgumentException {
-    return this.directedGraph.addEdge(from, to);
+    return getDirectedGraph().addEdge(from, to);
   }
 
   @Override public boolean addEdge(Vertex<ASTNode> from, Vertex<ASTNode> to, int cost) throws IllegalArgumentException {
-    return this.directedGraph.addEdge(from, to, cost);
+    return getDirectedGraph().addEdge(from, to, cost);
   }
 
   @Override public boolean containsEdge(Vertex<ASTNode> from, Vertex<ASTNode> to) {
-    return this.directedGraph.containsEdge(from, to);
+    return getDirectedGraph().containsEdge(from, to);
   }
 
   @Override public boolean containsVertex(Vertex<ASTNode> vertex) {
-    return this.directedGraph.containsVertex(vertex);
+    return getDirectedGraph().containsVertex(vertex);
   }
 
   @Override public Vertex<ASTNode> getRootVertex() {
-    return this.directedGraph.getRootVertex();
+    return getDirectedGraph().getRootVertex();
   }
 
   @Override public Vertex<ASTNode> getVertex(int idx) {
-    return this.directedGraph.getVertex(idx);
+    return getDirectedGraph().getVertex(idx);
   }
 
   @Override public Vertex<ASTNode> getVertex(String label) {
-    return this.directedGraph.getVertex(label);
+    return getDirectedGraph().getVertex(label);
   }
 
   @Override public List<Vertex<ASTNode>> getVertices() {
-    return this.directedGraph.getVertices();
+    return getDirectedGraph().getVertices();
   }
 
   @Override public List<Edge<ASTNode>> getEdges() {
-    return this.directedGraph.getEdges();
+    return getDirectedGraph().getEdges();
   }
 
   @Override public boolean isRootVertex(Vertex<ASTNode> vertex) {
-    return this.directedGraph.isRootVertex(vertex);
+    return getDirectedGraph().isRootVertex(vertex);
   }
 
   @Override public boolean isEmpty() {
-    return this.directedGraph.isEmpty();
+    return getDirectedGraph().isEmpty();
   }
 
   @Override public boolean removeVertex(Vertex<ASTNode> v) {
-    return this.directedGraph.removeVertex(v);
+    return getDirectedGraph().removeVertex(v);
   }
 
   @Override public boolean removeEdge(Vertex<ASTNode> from, Vertex<ASTNode> to) {
-    return this.directedGraph.removeEdge(from, to);
+    return getDirectedGraph().removeEdge(from, to);
   }
 
   @Override public int size() {
-    return this.directedGraph.size();
+    return getDirectedGraph().size();
   }
 
   @Override public String toString() {
     StringBuilder tmp = new StringBuilder("BSG[");
 
-    List<Segment> segments = getVertices().stream().map(v -> (Segment) v).collect(Collectors.toList());
+    List<Segment> segments = getVertices().stream()
+      .map(v -> (Segment) v)
+      .collect(Collectors.toList());
+
     segments = BY_DEPTH.sortedCopy(segments);
 
     for (Segment v : segments) {
