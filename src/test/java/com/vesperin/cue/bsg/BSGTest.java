@@ -5,7 +5,6 @@ import com.vesperin.base.EclipseJavaParser;
 import com.vesperin.base.JavaParser;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.SegmentationVisitor;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.junit.Test;
@@ -47,13 +46,13 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
+    final SegmentationVisitor blockSegmentation = new SegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     // the method declaration should have zero..or least two
     final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
-    assertThat(graph.getVertices().size() == 7, is(true));
-    assertThat(graph.getEdges().size() == 8, is(true));
+    assertThat(graph.getVertices().size() == 5, is(true));
+    assertThat(graph.getEdges().size() == 6, is(true));
 //    assertThat(graph.getVertices().size() == 6, is(true));
 //    assertThat(graph.getEdges().size() == 4, is(true));
 
@@ -65,12 +64,12 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
+    final SegmentationVisitor blockSegmentation = new SegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
-    assertThat(graph.getVertices().size() == 7, is(true));
-    assertThat(graph.getEdges().size() == 8, is(true));
+    assertThat(graph.getVertices().size() == 6, is(true));
+    assertThat(graph.getEdges().size() == 7, is(true));
   }
 
   @Test public void testBSGWhileLoop() throws Exception {
@@ -83,7 +82,7 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
+    final SegmentationVisitor blockSegmentation = new SegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     final SegmentationVisitor segmentationVisitor = new SegmentationVisitor(locatedUnit);
