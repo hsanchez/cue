@@ -53,8 +53,6 @@ public class BSGTest {
     final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
     assertThat(graph.getVertices().size() == 5, is(true));
     assertThat(graph.getEdges().size() == 6, is(true));
-//    assertThat(graph.getVertices().size() == 6, is(true));
-//    assertThat(graph.getEdges().size() == 4, is(true));
 
   }
 
@@ -114,7 +112,7 @@ public class BSGTest {
     assertThat(graph.getEdges().size() == 6, is(true));
   }
 
-  static Predicate<UnitLocation> method(final String name){
+  private static Predicate<UnitLocation> method(final String name){
     return (u -> ((MethodDeclaration)u.getUnitNode())
       .getName().getIdentifier().equals(name));
   }
