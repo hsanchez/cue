@@ -13,7 +13,7 @@ import java.util.Objects;
 /**
  * @author Huascar Sanchez
  */
-public class CodeBlock implements Segment {
+public class CodeSegment implements Segment {
 
   private double benefit;
   private double weight;
@@ -28,7 +28,7 @@ public class CodeBlock implements Segment {
    *
    * @param value the ASTNode object.
    */
-  private CodeBlock(ASTNode value){
+  private CodeSegment(ASTNode value){
     this(
       new VertexImpl<>(
         Objects.requireNonNull(value).toString(),
@@ -43,7 +43,7 @@ public class CodeBlock implements Segment {
    * @param impl delegating implementation.
    * @param benefit benefit of this segment.
    */
-  private CodeBlock(Vertex<ASTNode> impl, int benefit){
+  private CodeSegment(Vertex<ASTNode> impl, int benefit){
     this.impl     = impl;
     this.benefit  = benefit;
     this.weight   = calculateNumberOfLines(getData());
@@ -56,10 +56,10 @@ public class CodeBlock implements Segment {
    * Create a new code block for a given Block AST Node.
    *
    * @param block the block ast node.
-   * @return a new CodeBlock object.
+   * @return a new CodeSegment object.
    */
-  public static CodeBlock of(ASTNode block){
-    return new CodeBlock(block);
+  public static CodeSegment of(ASTNode block){
+    return new CodeSegment(block);
   }
 
   private static double calculateNumberOfLines(ASTNode node) {
