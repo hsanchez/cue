@@ -5,7 +5,7 @@ import com.vesperin.base.EclipseJavaParser;
 import com.vesperin.base.JavaParser;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.visitors.SegmentationVisitor;
+import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.junit.Test;
 
@@ -46,7 +46,7 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final SegmentationVisitor blockSegmentation = new SegmentationVisitor(locatedUnit);
+    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     // the method declaration should have zero..or least two
@@ -64,7 +64,7 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final SegmentationVisitor blockSegmentation = new SegmentationVisitor(locatedUnit);
+    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
@@ -82,10 +82,10 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final SegmentationVisitor blockSegmentation = new SegmentationVisitor(locatedUnit);
+    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
-    final SegmentationVisitor segmentationVisitor = new SegmentationVisitor(locatedUnit);
+    final BlockSegmentationVisitor segmentationVisitor = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(segmentationVisitor);
 
 
@@ -104,7 +104,7 @@ public class BSGTest {
     final UnitLocation locatedUnit = locatedUnitList.get(0);
     assertNotNull(locatedUnit);
 
-    final SegmentationVisitor segmentationVisitor = new SegmentationVisitor(locatedUnit);
+    final BlockSegmentationVisitor segmentationVisitor = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(segmentationVisitor);
 
     final BlockSegmentationGraph graph = segmentationVisitor.getBlockSegmentationGraph();

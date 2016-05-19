@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * @author Huascar Sanchez
  */
-public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
+public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
   private final Location scope;
 
   private final Set<ASTNode> outsiders;
@@ -42,7 +42,7 @@ public class SegmentationVisitor  extends ASTVisitorWithHierarchicalWalk {
    *
    * @param scope the segmentation boundary.
    */
-  public SegmentationVisitor(Location scope){
+  public BlockSegmentationVisitor(Location scope){
     this.scope = Preconditions.checkNotNull(scope);
     this.outsiders = new HashSet<>();
     this.visited   = new HashSet<>();

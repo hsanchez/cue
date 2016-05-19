@@ -15,7 +15,7 @@ import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.bsg.BlockSegmentationGraph;
-import com.vesperin.cue.bsg.visitors.SegmentationVisitor;
+import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
 import com.vesperin.cue.cmds.CommandRunnable;
 import com.vesperin.cue.cmds.Concepts;
@@ -172,7 +172,7 @@ public class Cue {
   }
 
   private BlockSegmentationGraph generateSegmentationGraph(Location locatedUnit) {
-    final SegmentationVisitor visitor = new SegmentationVisitor(locatedUnit);
+    final BlockSegmentationVisitor visitor = new BlockSegmentationVisitor(locatedUnit);
     ((UnitLocation)locatedUnit).getUnitNode().accept(visitor);
 
     return visitor.getBlockSegmentationGraph();
@@ -301,7 +301,7 @@ public class Cue {
     if(!singleton.isEmpty()){
       final UnitLocation location = singleton.get(0);
 
-      final SegmentationVisitor visitor = new SegmentationVisitor(location);
+      final BlockSegmentationVisitor visitor = new BlockSegmentationVisitor(location);
       location.getUnitNode().accept(visitor);
 
       final BlockSegmentationGraph graph = visitor.getBlockSegmentationGraph();
