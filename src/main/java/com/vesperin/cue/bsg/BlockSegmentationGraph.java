@@ -2,7 +2,6 @@ package com.vesperin.cue.bsg;
 
 import com.vesperin.base.locations.Location;
 import com.vesperin.cue.spi.DirectedGraph;
-import com.vesperin.cue.spi.Vertex;
 import org.eclipse.jdt.core.dom.ASTNode;
 
 import java.util.List;

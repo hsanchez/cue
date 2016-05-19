@@ -93,7 +93,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
         final ASTNode firstBlockNode = firstBlock.get();
 
         if(dag.getRootVertex() == null){
-          dag.addRootVertex(CodeBlock.of(node));
+          dag.addRoot(CodeBlock.of(node));
         }
 
         catchFirstCodeBlock(node, firstBlockNode);
@@ -260,7 +260,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
     }
 
     if(dag.getRootVertex() == null){
-      dag.addRootVertex(from);
+      dag.addRoot(from);
     }
 
     final BlockVisitor statements = new BlockVisitor();
