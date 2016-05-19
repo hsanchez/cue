@@ -19,9 +19,9 @@ import java.util.Set;
  * @author Huascar Sanchez
  */
 @Command(name = "concepts", description = "Recognizing implied concepts in code")
-public class Concepts implements CommandRunnable {
+public class ConceptAssignmentCommand implements CallableCommand {
 
-  @Inject HelpOption<Typicality> help;
+  @Inject HelpOption<TypicalityAnalysisCommand> help;
 
   @Option(name = {"-d", "--directory"}, arity = 1, description = "extracts concepts from target directory.")
   private String directory = null;
@@ -33,7 +33,7 @@ public class Concepts implements CommandRunnable {
   private String from = null;
 
 
-  @Override public int run() {
+  @Override public Integer call() throws Exception {
     if(!help.showHelpIfRequested()){
       if(directory == null && from == null) {
         System.err.println("Please use a valid option (see -help for information).");

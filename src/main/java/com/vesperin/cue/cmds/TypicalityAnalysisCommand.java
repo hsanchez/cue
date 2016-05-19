@@ -27,12 +27,12 @@ import static java.nio.file.StandardOpenOption.CREATE;
  * @author Huascar Sanchez
  */
 @Command(name = "typical", description = "Finds the top k most typical implementation")
-public class Typicality implements CommandRunnable {
+public class TypicalityAnalysisCommand implements CallableCommand {
 
   private static final String TYPICAL_SET_FILE_NAME = "typicalset.txt";
   private static final Cue    ENGINE                = new Cue();
 
-  @Inject HelpOption<Typicality> help;
+  @Inject HelpOption<TypicalityAnalysisCommand> help;
 
   @Option(name = { "-t", "--targets" }, arity = 100, description = "multiple target files to test (100 max).")
   private List<String> targets = null;
@@ -52,7 +52,7 @@ public class Typicality implements CommandRunnable {
   @Option(name = {"-e", "--echo"}, description = "print results on screen.")
   private boolean onScreen = false;
 
-  @Override public int run() {
+  @Override public Integer call() throws Exception {
     if(!help.showHelpIfRequested()){
       if(emptyEntries(directory, from, targets)) {
         System.err.println("Please use a valid option (see -help for information).");

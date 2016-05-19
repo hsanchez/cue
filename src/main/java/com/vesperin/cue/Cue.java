@@ -17,9 +17,9 @@ import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.bsg.BlockSegmentationGraph;
 import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
-import com.vesperin.cue.cmds.CommandRunnable;
-import com.vesperin.cue.cmds.Concepts;
-import com.vesperin.cue.cmds.Typicality;
+import com.vesperin.cue.cmds.CallableCommand;
+import com.vesperin.cue.cmds.ConceptAssignmentCommand;
+import com.vesperin.cue.cmds.TypicalityAnalysisCommand;
 import com.vesperin.cue.spi.SourceSelection;
 import com.vesperin.cue.text.WordCounter;
 
@@ -31,6 +31,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,6 +44,9 @@ import static com.vesperin.cue.utils.Similarity.similarityScore;
  * @author Huascar Sanchez
  */
 public class Cue {
+
+  private static final ExecutorService SERVICE = Executors.newSingleThreadExecutor();
+
   private static final double SMOOTHING_FACTOR = 0.3;
   private static final String NOTHING = "";
   private final JavaParser parser;
@@ -329,9 +335,11 @@ public class Cue {
     return similarityScore(summaries.get(a.getName()), summaries.get(b.getName()));
   }
 
-  private static <T extends CommandRunnable> void execute(T cmd) {
+  private static <T extends CallableCommand> void execute(T cmd) {
     try {
-      int exitCode = cmd.run();
+
+      final Future<Integer> result = SERVICE.submit(cmd);
+      int exitCode = result.get();
       System.out.println();
       System.out.println("Exiting with Code " + exitCode);
       System.exit(exitCode);
@@ -342,7 +350,7 @@ public class Cue {
   }
 
 
-  private static <T extends CommandRunnable> void executeCli(Cli<T> cli, String[] args) {
+  private static <T extends CallableCommand> void executeCli(Cli<T> cli, String[] args) {
     try {
       T cmd = cli.parse(args);
       execute(cmd);
@@ -382,10 +390,10 @@ public class Cue {
   }
 
   public static void main(String[] args) {
-    final CliBuilder<CommandRunnable> builder = Cli.<CommandRunnable>builder("cue")
+    final CliBuilder<CallableCommand> builder = Cli.<CallableCommand>builder("cue")
       .withDescription("Cue CLI")
-      .withCommand(Typicality.class)
-      .withCommand(Concepts.class);
+      .withCommand(TypicalityAnalysisCommand.class)
+      .withCommand(ConceptAssignmentCommand.class);
 
     executeCli(builder.build(), args);
   }
