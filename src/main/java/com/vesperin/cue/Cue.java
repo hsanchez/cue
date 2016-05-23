@@ -14,12 +14,12 @@ import com.vesperin.base.Source;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.BlockSegmentationGraph;
 import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
 import com.vesperin.cue.bsg.visitors.TokenIterator;
 import com.vesperin.cue.cmds.CallableCommand;
 import com.vesperin.cue.cmds.ConceptAssignmentCommand;
 import com.vesperin.cue.cmds.TypicalityAnalysisCommand;
+import com.vesperin.cue.graph.SegmentationGraph;
 import com.vesperin.cue.spi.SourceSelection;
 import com.vesperin.cue.text.WordCounter;
 
@@ -160,8 +160,8 @@ public class Cue {
     ensureValidInput(locatedUnit, topK);
 
     // generate optimal segmentation graph
-    final BlockSegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
-    final Set<Location> blackList = bsg.irrelevantLocations(locatedUnit).stream()
+    final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
+    final Set<Location> blackList = bsg.irrelevantSet(locatedUnit).stream()
       .collect(Collectors.toSet());
 
     return generateInterestingConcepts(topK, locatedUnit, blackList);
@@ -177,7 +177,7 @@ public class Cue {
     return wordCounter.mostFrequent(topK);
   }
 
-  private BlockSegmentationGraph generateSegmentationGraph(Location locatedUnit) {
+  private SegmentationGraph generateSegmentationGraph(Location locatedUnit) {
     final BlockSegmentationVisitor visitor = new BlockSegmentationVisitor(locatedUnit);
     ((UnitLocation)locatedUnit).getUnitNode().accept(visitor);
 
@@ -310,10 +310,10 @@ public class Cue {
       final BlockSegmentationVisitor visitor = new BlockSegmentationVisitor(location);
       location.getUnitNode().accept(visitor);
 
-      final BlockSegmentationGraph graph = visitor.getBlockSegmentationGraph();
+      final SegmentationGraph graph = visitor.getBlockSegmentationGraph();
 
       final SourceSelection selection = new SourceSelection(
-        graph.relevantLocations(location)
+        graph.relevantSet(location).stream().collect(Collectors.toList())
       );
 
       return selection.toCode();

@@ -6,11 +6,10 @@ import com.vesperin.base.locations.Locations;
 import com.vesperin.base.utils.Jdt;
 import com.vesperin.base.visitors.ASTVisitorWithHierarchicalWalk;
 import com.vesperin.cue.bsg.AstUtils;
-import com.vesperin.cue.bsg.BlockSegmentationGraph;
-import com.vesperin.cue.bsg.CodeSegment;
-import com.vesperin.cue.bsg.DirectedBlockSegmentationGraph;
-import com.vesperin.cue.bsg.Segment;
-import com.vesperin.cue.spi.GraphUtils;
+import com.vesperin.cue.graph.BlockSegmentationGraph;
+import com.vesperin.cue.graph.CodeSegment;
+import com.vesperin.cue.graph.Segment;
+import com.vesperin.cue.graph.SegmentationGraph;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -35,7 +34,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
   private final Set<ASTNode> outsiders;
   private final Set<ASTNode> visited;
-  private final DirectedBlockSegmentationGraph dag;
+  private final BlockSegmentationGraph dag;
 
   /**
    * Scoped code segmentation step.
@@ -46,7 +45,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
     this.scope = Preconditions.checkNotNull(scope);
     this.outsiders = new HashSet<>();
     this.visited   = new HashSet<>();
-    this.dag       = new DirectedBlockSegmentationGraph();
+    this.dag       = new BlockSegmentationGraph();
   }
 
 
@@ -59,16 +58,17 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
         final Segment from = dag.segmentBy(callingBlock.toString());
 
         Segment to = CodeSegment.of(node);
-        if(dag.contains(to)){
+        if(dag.containsVertex(to)){
           to = dag.segmentBy(node.toString());
         } else {
-          dag.add(to);
+          dag.addVertex(to);
         }
 
         boolean seenAndDoneBefore = visited.contains(callingBlock) && visited.contains(node);
 
-        if(!seenAndDoneBefore && !GraphUtils.isDescendantOf(from, to)){
-          dag.connects(from, to);
+        if(!seenAndDoneBefore && !dag.isDescendantOf(from, to)){
+
+          dag.addEdge(from, to);
 
           updateSegmentValues(dag, from, to);
         }
@@ -92,8 +92,8 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
         final ASTNode firstBlockNode = firstBlock.get();
 
-        if(dag.rootSegment() == null){
-          dag.addRoot(CodeSegment.of(node));
+        if(dag.getRootVertex() == null){
+          dag.addRootVertex(CodeSegment.of(node));
         }
 
         catchFirstCodeBlock(node, firstBlockNode);
@@ -216,18 +216,18 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
   private void linkNodes(ASTNode callingBlock, ASTNode calledBlock){
     if(calledBlock == callingBlock) return;
     Segment from;
-    if(dag.contains(CodeSegment.of(callingBlock))){
+    if(dag.containsVertex(CodeSegment.of(callingBlock))){
       from = dag.segmentBy(callingBlock.toString());
     } else {
       from = CodeSegment.of(callingBlock);
-      dag.add(from);
+      dag.addVertex(from);
     }
 
     final Segment to = CodeSegment.of(calledBlock);
-    dag.add(to);
+    dag.addVertex(to);
 
-    if(!GraphUtils.isDescendantOf(from, to)){
-      dag.connects(from, to);
+    if(!dag.isDescendantOf(from, to)){
+      dag.addEdge(from, to);
 
       updateSegmentValues(dag, from, to);
     }
@@ -253,14 +253,14 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
 
   private void catchCodeBlock(ASTNode node){
     Segment from = CodeSegment.of(node);
-    if(dag.contains(from)){
+    if(dag.containsVertex(from)){
       from = dag.segmentBy(node.toString());
     } else {
-      dag.add(from);
+      dag.addVertex(from);
     }
 
-    if(dag.rootSegment() == null){
-      dag.addRoot(from);
+    if(dag.getRootVertex() == null){
+      dag.addRootVertex(from);
     }
 
     final BlockVisitor statements = new BlockVisitor();
@@ -278,15 +278,15 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
       visited.add(each);
 
       Segment to = CodeSegment.of(each);
-      if(dag.contains(to)){
+      if(dag.containsVertex(to)){
         to = dag.segmentBy(each.toString());
       } else {
-        dag.add(to);
+        dag.addVertex(to);
       }
 
 
-      if(!GraphUtils.isDescendantOf(from, to)){
-        dag.connects(from, to);
+      if(!dag.isDescendantOf(from, to)){
+        dag.addEdge(from, to);
 
         updateSegmentValues(dag, from, to);
       }
@@ -296,18 +296,20 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
     }
   }
 
-  private static void updateSegmentValues(DirectedBlockSegmentationGraph dag, Segment from, Segment to){
+  private static void updateSegmentValues(SegmentationGraph dag, Segment from, Segment to){
 
-    Segment actualFrom = dag.segmentBy(Objects.requireNonNull(from).getName());
-    Segment actualTo   = dag.segmentBy(Objects.requireNonNull(to).getName());
+    Segment actualFrom = dag.segmentBy(Objects.requireNonNull(from).label());
+    Segment actualTo   = dag.segmentBy(Objects.requireNonNull(to).label());
 
-    final int depth = actualTo.getDepth();
-    actualTo.setBenefit(actualTo.getBenefit() + calculateBenefit(actualTo.getData(), depth));
+    final int depth = actualTo.depth();
+    final CodeSegment castActualTo = ((CodeSegment) actualTo);
+    castActualTo.updateBenefit(actualTo.benefit() + calculateBenefit(actualTo.data(), depth));
 
     // distribute weight among children
     if(isIncluded(actualFrom, actualTo)){ // is a segment (to) included in another segment (from)?
-      final double weightChange = (actualFrom.getWeight() - actualTo.getWeight());
-      actualFrom.setWeight((weightChange < 0.0 ? 0.0 : weightChange));
+      final CodeSegment castActualFrom = ((CodeSegment) actualTo);
+      final double weightChange = (actualFrom.weight() - actualTo.weight());
+      castActualFrom.updateWeight((weightChange < 0.0 ? 0.0 : weightChange));
     }
   }
 
@@ -316,7 +318,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
   }
 
   private static Location locates(Segment segment){
-    return Locations.locate(segment.getData());
+    return Locations.locate(segment.data());
   }
 
   private static double calculateBenefit(ASTNode/*Block*/ node, int depth) {
@@ -354,7 +356,7 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
     return false;
   }
 
-  public BlockSegmentationGraph getBlockSegmentationGraph(){
+  public SegmentationGraph getBlockSegmentationGraph(){
     return dag;
   }
 }

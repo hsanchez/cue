@@ -6,6 +6,7 @@ import com.vesperin.base.JavaParser;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
+import com.vesperin.cue.graph.SegmentationGraph;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.junit.Test;
 
@@ -50,9 +51,9 @@ public class BSGTest {
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
     // the method declaration should have zero..or least two
-    final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
-    assertThat(graph.getVertices().size() == 5, is(true));
-    assertThat(graph.getEdges().size() == 6, is(true));
+    final SegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
+    assertThat(graph.vertexSet().size() == 5, is(true));
+    assertThat(graph.edgeSet().size() == 6, is(true));
 
   }
 
@@ -65,9 +66,9 @@ public class BSGTest {
     final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(blockSegmentation);
 
-    final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
-    assertThat(graph.getVertices().size() == 6, is(true));
-    assertThat(graph.getEdges().size() == 7, is(true));
+    final SegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
+    assertThat(graph.vertexSet().size() == 6, is(true));
+    assertThat(graph.edgeSet().size() == 7, is(true));
   }
 
   @Test public void testBSGWhileLoop() throws Exception {
@@ -89,7 +90,7 @@ public class BSGTest {
 
     assertNotNull(segmentationVisitor.getBlockSegmentationGraph());
 
-    final BlockSegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
+    final SegmentationGraph graph = blockSegmentation.getBlockSegmentationGraph();
     assertNotNull(graph);
 
   }
@@ -105,11 +106,11 @@ public class BSGTest {
     final BlockSegmentationVisitor segmentationVisitor = new BlockSegmentationVisitor(locatedUnit);
     locatedUnit.getUnitNode().accept(segmentationVisitor);
 
-    final BlockSegmentationGraph graph = segmentationVisitor.getBlockSegmentationGraph();
+    final SegmentationGraph graph = segmentationVisitor.getBlockSegmentationGraph();
 
     assertNotNull(graph);
-    assertThat(graph.getVertices().size() == 5, is(true));
-    assertThat(graph.getEdges().size() == 6, is(true));
+    assertThat(graph.vertexSet().size() == 5, is(true));
+    assertThat(graph.edgeSet().size() == 6, is(true));
   }
 
   private static Predicate<UnitLocation> method(final String name){
