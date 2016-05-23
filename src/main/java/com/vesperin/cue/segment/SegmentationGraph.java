@@ -1,7 +1,9 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.segment;
 
 import com.google.common.collect.Sets;
 import com.vesperin.base.locations.Location;
+import com.vesperin.cue.spi.DirectedAcyclicGraph;
+import com.vesperin.cue.spi.Edge;
 
 import java.util.Deque;
 import java.util.LinkedList;
@@ -13,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * @author Huascar Sanchez
  */
-public interface SegmentationGraph extends DirectedGraph <Segment, Edge<Segment>> {
+public interface SegmentationGraph extends DirectedAcyclicGraph<Segment, Edge<Segment>> {
 
   /**
    * Returns the segment matching a label.

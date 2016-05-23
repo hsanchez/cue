@@ -1,12 +1,10 @@
-package com.vesperin.cue.bsg;
+package com.vesperin.cue.segment;
 
 import com.vesperin.base.Context;
 import com.vesperin.base.EclipseJavaParser;
 import com.vesperin.base.JavaParser;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
-import com.vesperin.cue.graph.SegmentationGraph;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.junit.Test;
 
@@ -23,7 +21,7 @@ import static org.junit.Assert.assertThat;
 /**
  * @author Huascar Sanchez
  */
-public class BSGTest {
+public class BlockSegmentationGraphTest {
   private static final JavaParser PARSER = new EclipseJavaParser();
   private static final String TRY_CATCH   = "Try/Catch";
   private static final String WHILE_LOOP  = "While/Loop";
@@ -31,8 +29,8 @@ public class BSGTest {
 
   static {
     CONTEXT = new HashMap<>();
-    CONTEXT.put(TRY_CATCH, PARSER.parseJava(Code.TRY_CATCH));
-    CONTEXT.put(WHILE_LOOP, PARSER.parseJava(Code.WHILE_LOOP));
+    CONTEXT.put(TRY_CATCH, PARSER.parseJava(TestCode.TRY_CATCH));
+    CONTEXT.put(WHILE_LOOP, PARSER.parseJava(TestCode.WHILE_LOOP));
   }
 
 

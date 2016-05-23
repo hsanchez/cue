@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.segment;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -6,13 +6,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
-import com.vesperin.base.Context;
-import com.vesperin.base.EclipseJavaParser;
-import com.vesperin.base.Source;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.TypeDeclaration;
+import com.vesperin.cue.spi.AbstractDirectedAcyclicGraph;
+import com.vesperin.cue.spi.DirectedAcyclicGraph;
+import com.vesperin.cue.spi.Edge;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,8 +21,8 @@ import java.util.stream.Collectors;
 /**
  * @author Huascar Sanchez
  */
-public class BlockSegmentationGraph extends AbstractDirectedGraph<Segment, Edge<Segment>> implements
-  SegmentationGraph {
+class BlockSegmentationGraph extends
+  AbstractDirectedAcyclicGraph<Segment, Edge<Segment>> implements SegmentationGraph {
 
   private static final Ordering<Segment> BY_DEPTH = new Ordering<Segment>() {
     public int compare(Segment left, Segment right) {
@@ -50,7 +48,7 @@ public class BlockSegmentationGraph extends AbstractDirectedGraph<Segment, Edge<
   /**
    * Constructs an empty block segmentation graph (DAG).
    */
-  public BlockSegmentationGraph(){
+  BlockSegmentationGraph(){
     this(new EdgeFactoryImpl<>());
   }
   /**
@@ -64,15 +62,8 @@ public class BlockSegmentationGraph extends AbstractDirectedGraph<Segment, Edge<
     super(edgeFactory);
   }
 
-  @Override public boolean addEdge(Segment from, Segment to) {
-    boolean result = addEdge(from, to, 0.0);
-
-    if(!findCycles(this).isEmpty()){
-      removeEdge(from, to);
-      throw new CycleEdgesException("Error: A cycle has been formed!");
-    }
-
-    return result;
+  @Override public boolean hasCycle() {
+    return !findCycles(this).isEmpty();
   }
 
   @Override public Segment segmentBy(String label) {
@@ -81,7 +72,7 @@ public class BlockSegmentationGraph extends AbstractDirectedGraph<Segment, Edge<
       .findFirst().orElse(null);
   }
 
-  private static List<Edge<Segment>> findCycles(DirectedGraph<Segment, Edge<Segment>> graph) {
+  private static List<Edge<Segment>> findCycles(DirectedAcyclicGraph<Segment, Edge<Segment>> graph) {
 
     final List<Edge<Segment>> cycleEdges = new ArrayList<>();
     for(Segment each : graph.vertexSet()){
@@ -98,7 +89,7 @@ public class BlockSegmentationGraph extends AbstractDirectedGraph<Segment, Edge<
 
 
 
-  private static void visit(Segment v, DirectedGraph<Segment, Edge<Segment>> graph,
+  private static void visit(Segment v, DirectedAcyclicGraph<Segment, Edge<Segment>> graph,
           List<Edge<Segment>> cycleEdges) {
 
     v.setMarkState(VISIT_COLOR_GREY);
@@ -274,25 +265,5 @@ public class BlockSegmentationGraph extends AbstractDirectedGraph<Segment, Edge<
 
     tmp.append(']');
     return tmp.toString();
-  }
-
-  public static void main(String[] args) {
-    final Context context = new EclipseJavaParser().parseJava(
-      Source.from("Name", "class Name { class Foo {} }")
-    );
-
-    final CompilationUnit from = context.getCompilationUnit();
-    final TypeDeclaration to   = (TypeDeclaration) from.types().get(0);
-
-    final CodeSegment a = new CodeSegment(from);
-    final CodeSegment b = new CodeSegment(to);
-    final BlockSegmentationGraph bsg = new BlockSegmentationGraph();
-    bsg.addVertex(a);
-    bsg.addVertex(b);
-
-    bsg.addEdge(a, b);
-    bsg.addEdge(b, a);
-
-    System.out.println(bsg);
   }
 }

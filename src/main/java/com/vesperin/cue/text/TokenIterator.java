@@ -1,4 +1,4 @@
-package com.vesperin.cue.bsg.visitors;
+package com.vesperin.cue.text;
 
 import com.google.common.collect.Sets;
 import com.vesperin.base.locations.Location;

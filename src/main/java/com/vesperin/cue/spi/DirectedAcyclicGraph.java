@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.spi;
 
 import com.google.common.collect.Sets;
 
@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 /**
  * @author Huascar Sanchez
  */
-interface DirectedGraph <V, E extends Edge <V>> {
+public interface DirectedAcyclicGraph<V, E extends Edge <V>> {
   /**
    * Insert a directed edge into the graph.
    *
@@ -19,8 +19,20 @@ interface DirectedGraph <V, E extends Edge <V>> {
    * @throws CycleEdgesException if found a cycle in the graph.
    */
   default boolean addEdge(V from, V to){
-    return addEdge(from, to, 0.0);
+    boolean result = addEdge(from, to, 0.0);
+
+    if(hasCycle()){
+      removeEdge(from, to);
+      throw new CycleEdgesException("Error: A cycle has been formed!");
+    }
+
+    return result;
   }
+
+  /**
+   * @return true if the graph has a cycle.
+   */
+  boolean hasCycle();
 
   /**
    * Insert a directed edge into the graph.

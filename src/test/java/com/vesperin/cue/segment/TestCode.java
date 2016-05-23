@@ -1,4 +1,4 @@
-package com.vesperin.cue.bsg;
+package com.vesperin.cue.segment;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -7,7 +7,7 @@ import com.vesperin.base.Source;
 /**
  * @author Huascar Sanchez
  */
-class Code {
+class TestCode {
   static final Source TRY_CATCH = Source.from("TryCatch", Joiner.on("\n").join(
     ImmutableList.of(
       "class TryCatch {"

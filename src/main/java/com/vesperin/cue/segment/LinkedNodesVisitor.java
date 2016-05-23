@@ -1,4 +1,4 @@
-package com.vesperin.cue.bsg.visitors;
+package com.vesperin.cue.segment;
 
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.IBinding;

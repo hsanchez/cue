@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.spi;
 
 /**
  * @author Huascar Sanchez

@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.spi;
 
 /**
  * @author Huascar Sanchez
@@ -13,6 +13,11 @@ public interface Vertex <T> {
    * @return the data stored in this vertex.
    */
   T data();
+
+  /**
+   * @return the segment's weight/cost
+   */
+  double weight();
 
   /**
    * @return the mark state value

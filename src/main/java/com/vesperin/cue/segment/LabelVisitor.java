@@ -1,4 +1,4 @@
-package com.vesperin.cue.bsg.visitors;
+package com.vesperin.cue.segment;
 
 import com.vesperin.base.utils.Jdt;
 import org.eclipse.jdt.core.dom.ASTNode;

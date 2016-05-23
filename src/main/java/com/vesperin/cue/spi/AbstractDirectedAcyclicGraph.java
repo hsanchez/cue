@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.spi;
 
 import java.util.LinkedHashSet;
 import java.util.Objects;
@@ -7,7 +7,7 @@ import java.util.Set;
 /**
  * @author Huascar Sanchez
  */
-abstract class AbstractDirectedGraph<V, E extends Edge<V>> implements DirectedGraph <V, E> {
+public abstract class AbstractDirectedAcyclicGraph<V, E extends Edge<V>> implements DirectedAcyclicGraph<V, E> {
 
   private final EdgeFactory<V, E>   edgeFactory;
   private final Set<E>              edges;
@@ -17,7 +17,7 @@ abstract class AbstractDirectedGraph<V, E extends Edge<V>> implements DirectedGr
   /**
    * Constructs an empty DAG.
    */
-  AbstractDirectedGraph(EdgeFactory<V, E> edgeFactory){
+  protected AbstractDirectedAcyclicGraph(EdgeFactory<V, E> edgeFactory){
     this(null, edgeFactory);
   }
 
@@ -28,7 +28,7 @@ abstract class AbstractDirectedGraph<V, E extends Edge<V>> implements DirectedGr
    *               can be the root of the graph.
    * @param edgeFactory edge factory
    */
-  private AbstractDirectedGraph(V vertex, EdgeFactory<V, E> edgeFactory){
+  private AbstractDirectedAcyclicGraph(V vertex, EdgeFactory<V, E> edgeFactory){
     this.edgeFactory  = Objects.requireNonNull(edgeFactory);
     this.edges        = new LinkedHashSet<>();
     this.vertices     = new LinkedHashSet<>();
@@ -92,7 +92,7 @@ abstract class AbstractDirectedGraph<V, E extends Edge<V>> implements DirectedGr
   }
 
   @Override public String toString() {
-    StringBuilder tmp = new StringBuilder("DirectedGraph[");
+    StringBuilder tmp = new StringBuilder("DirectedAcyclicGraph[");
 
     for (V v : vertexSet()) {
       tmp.append(v).append(", ");

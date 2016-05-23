@@ -1,22 +1,18 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.segment;
 
 import com.vesperin.base.locations.Location;
+import com.vesperin.cue.spi.Vertex;
 import org.eclipse.jdt.core.dom.ASTNode;
 
 /**
  * @author Huascar Sanchez
  */
-public interface Segment extends Vertex <ASTNode> {
+interface Segment extends Vertex<ASTNode> {
   /**
    * @return the location of the code segment
    * in the source file
    */
   Location location();
-
-  /**
-   * @return the segment's weight/cost
-   */
-  double weight();
 
   /**
    * @return the segment's benefit

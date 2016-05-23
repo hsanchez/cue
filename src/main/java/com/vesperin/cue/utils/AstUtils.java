@@ -1,8 +1,8 @@
-package com.vesperin.cue.bsg;
+package com.vesperin.cue.utils;
 
 import com.google.common.collect.ImmutableList;
-import com.vesperin.cue.bsg.visitors.LabelVisitor;
-import com.vesperin.cue.bsg.visitors.LinkedNodesVisitor;
+import com.vesperin.cue.segment.LabelVisitor;
+import com.vesperin.cue.segment.LinkedNodesVisitor;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;

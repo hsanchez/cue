@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.segment;
 
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
@@ -22,7 +22,7 @@ abstract class AbstractSegment implements Segment {
    * @param data Node in a AST.
    */
   AbstractSegment(ASTNode data){
-    this(Objects.requireNonNull(data).toString(), data, Locations.locate(data));
+    this(Objects.requireNonNull(data).toString(), data);
   }
 
   /**
@@ -30,7 +30,7 @@ abstract class AbstractSegment implements Segment {
    *
    * @param data Node in a AST.
    */
-  protected AbstractSegment(String label, ASTNode data){
+  private AbstractSegment(String label, ASTNode data){
     this(label, Objects.requireNonNull(data), Locations.locate(data));
   }
 

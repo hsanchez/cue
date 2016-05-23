@@ -1,4 +1,4 @@
-package com.vesperin.cue.graph;
+package com.vesperin.cue.segment;
 
 import com.google.common.base.Preconditions;
 import com.vesperin.base.locations.Location;
@@ -10,7 +10,7 @@ import java.util.Objects;
 /**
  * @author Huascar Sanchez
  */
-public class CodeSegment extends AbstractSegment implements Segment {
+class CodeSegment extends AbstractSegment implements Segment {
 
 
   private double weight;

@@ -14,12 +14,12 @@ import com.vesperin.base.Source;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
-import com.vesperin.cue.bsg.visitors.TokenIterator;
+import com.vesperin.cue.segment.BlockSegmentationVisitor;
+import com.vesperin.cue.text.TokenIterator;
 import com.vesperin.cue.cmds.CallableCommand;
 import com.vesperin.cue.cmds.ConceptAssignmentCommand;
 import com.vesperin.cue.cmds.TypicalityAnalysisCommand;
-import com.vesperin.cue.graph.SegmentationGraph;
+import com.vesperin.cue.segment.SegmentationGraph;
 import com.vesperin.cue.spi.SourceSelection;
 import com.vesperin.cue.text.WordCounter;
 
@@ -37,7 +37,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.vesperin.cue.bsg.AstUtils.methodDeclaration;
+import static com.vesperin.cue.utils.AstUtils.methodDeclaration;
 import static com.vesperin.cue.utils.Similarity.similarityScore;
 
 /**

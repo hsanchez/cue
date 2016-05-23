@@ -1,15 +1,11 @@
-package com.vesperin.cue.bsg.visitors;
+package com.vesperin.cue.segment;
 
 import com.google.common.base.Preconditions;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.utils.Jdt;
 import com.vesperin.base.visitors.ASTVisitorWithHierarchicalWalk;
-import com.vesperin.cue.bsg.AstUtils;
-import com.vesperin.cue.graph.BlockSegmentationGraph;
-import com.vesperin.cue.graph.CodeSegment;
-import com.vesperin.cue.graph.Segment;
-import com.vesperin.cue.graph.SegmentationGraph;
+import com.vesperin.cue.utils.AstUtils;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
