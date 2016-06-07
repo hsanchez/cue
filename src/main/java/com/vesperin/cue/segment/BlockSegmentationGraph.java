@@ -1,6 +1,6 @@
 package com.vesperin.cue.segment;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -13,9 +13,11 @@ import com.vesperin.cue.spi.DirectedAcyclicGraph;
 import com.vesperin.cue.spi.Edge;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 /**
@@ -110,12 +112,30 @@ class BlockSegmentationGraph extends
     return Iterables.get(vertexSet(), n);
   }
 
-  @Override public List<Location> irrelevantSet(int capacity) {
-    if(capacity <= 3) return ImmutableList.of();
-    return generateBlackList(this, capacity);
+  @Override public Set<Location> irrelevantSet(int capacity) {
+    if(capacity <= 3) return ImmutableSet.of();
+
+    final List<Segment> blackList = generateBlackList(this, capacity);
+
+    return blackList.stream()
+      .map(foldable -> Locations.locate(foldable.data()))
+      .collect(toImmutableSet());
   }
 
-  private static List<Location> generateBlackList(SegmentationGraph graph, int capacity) {
+  /**
+   * Creates a collector that transforms a mutable set into an immutable one.
+   *
+   * @param <T> the type parameter.
+   * @return a new collector object.
+   */
+  private static <T> Collector<T, ?, Set<T>> toImmutableSet() {
+    return Collectors.collectingAndThen(
+      Collectors.toSet(),
+      Collections::unmodifiableSet
+    );
+  }
+
+  private static List<Segment> generateBlackList(SegmentationGraph graph, int capacity) {
     final List<Segment> allSegments = Lists.newLinkedList(
       graph.vertexSet().stream()
         .filter(v -> !(Objects.equals(v, graph.getRootVertex())))
@@ -178,14 +198,7 @@ class BlockSegmentationGraph extends
 
     allSegments.removeAll(keep);
 
-    final List<Location> locations = Lists.newLinkedList();
-    locations.addAll(
-      allSegments.stream()
-        .map(foldable -> Locations.locate(foldable.data()))
-        .collect(Collectors.toList())
-    );
-
-    return locations;
+    return allSegments;
   }
 
   private static boolean isPrecedenceConstraintMaintained(

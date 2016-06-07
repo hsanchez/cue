@@ -86,20 +86,26 @@ public interface SegmentationGraph extends DirectedAcyclicGraph<Segment, Edge<Se
    * Returns the non-informative (irrelevant to some capacity) segments
    * in this graph for the given capacity.
    *
+   * Note: This set maintains a particular ordering (e.g.
+   * via {@link java.util.LinkedHashSet}) for deterministic iteration.
+   *
    * @param capacity segmentation factor.
-   * @return a list of segment locations.
+   * @return a set of segment locations.
    */
-  List<Location> irrelevantSet(int capacity);
+  Set<Location> irrelevantSet(int capacity);
 
   /**
    * Returns the non-informative (irrelevant to some capacity) segments
    * in this graph for the given scope.
    *
+   * Note: This set maintains a particular ordering (e.g.
+   * via {@link java.util.LinkedHashSet}) for deterministic iteration.
+   *
    * @param forScope the scope from where the capacity is inferred.
    *                 The capacity value is simply our segmentation factor.
-   * @return a list of segment locations.
+   * @return a set of segment locations.
    */
-  default List<Location> irrelevantSet(Location forScope){
+  default Set<Location> irrelevantSet(Location forScope){
     return irrelevantSet(
       (
         Math.abs(

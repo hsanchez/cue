@@ -19,7 +19,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import static com.vesperin.cue.cmds.CallableCommand.allNonNull;
+import static com.vesperin.cue.cmds.CallableCommand.allNull;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 
@@ -30,37 +33,43 @@ import static java.nio.file.StandardOpenOption.CREATE;
 public class TypicalityAnalysisCommand implements CallableCommand {
 
   private static final String TYPICAL_SET_FILE_NAME = "typicalset.txt";
-  private static final Cue    ENGINE                = new Cue();
 
   @Inject HelpOption<TypicalityAnalysisCommand> help;
 
-  @Option(name = { "-t", "--targets" }, arity = 100, description = "multiple target files to test (100 max).")
+  @Option(name = { "-t", "--targets" }, arity = 100, description = "the names of multiple files to analyze (100 max).")
   private List<String> targets = null;
 
-  @Option(name = {"-f", "--from"}, arity = 1, description = "focus in entries in target file.")
+  @Option(name = {"-f", "--from"}, arity = 1, description = "analyze only the method entries in target file.")
   private String from = null;
 
-  @Option(name = {"-d", "--directory"}, arity = 1, description = "directory containing files to check.")
+  @Option(name = {"-d", "--directory"}, arity = 1, description = "directory containing files to analyze.")
   private String directory = null;
 
   @Option(name = {"-k", "--topK"}, description = "k most typical source code.")
   private int topK = 1;
 
+  @SuppressWarnings("FieldCanBeLocal")
   @Option(name = {"-b", "--bandwidth"}, description = "bandwidth parameter.")
   private double bandwidth = 0.3;
 
+  @SuppressWarnings("FieldCanBeLocal")
   @Option(name = {"-e", "--echo"}, description = "print results on screen.")
   private boolean onScreen = false;
 
   @Override public Integer call() throws Exception {
     if(!help.showHelpIfRequested()){
-      if(emptyEntries(directory, from, targets)) {
+      if(allNull(3, directory, from, targets)) {
         System.err.println("Please use a valid option (see -help for information).");
         return -1;
       }
 
-      if(containsAll(directory, from, targets)) {
-        System.err.println("Please use only one option at a time (not both).");
+      if(topK < 1) {
+        System.err.println("Please use a valid topK value (see -help for information).");
+        return -1;
+      }
+
+      if(allNonNull(3, directory, from, targets)) {
+        System.err.println("Please use only one option at a time (not all).");
         return -1;
       }
 
@@ -107,9 +116,9 @@ public class TypicalityAnalysisCommand implements CallableCommand {
   }
 
   private void performTypicalityQuery(List<Source> corpus, Set<String> relevant) {
-    final Cue cue = ENGINE;
 
-    final List<Source> result = cue.typicalityQuery(corpus, relevant, bandwidth, topK);
+    final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
+    final List<Source> result = Cue.issueTypicalityQuery(topK, bandwidth, corpusSet, relevant);
     if(result.isEmpty()){
       System.out.println("No typical source code was found.");
     } else {
@@ -120,7 +129,7 @@ public class TypicalityAnalysisCommand implements CallableCommand {
 
         for(Source each : result){
 
-          final String snippet = cue.pullCode(each, relevant);
+          final String snippet = Cue.relevantCode(each, relevant);
           if(!Strings.isNullOrEmpty(snippet)){
 
             if(!onScreen) {
@@ -152,13 +161,5 @@ public class TypicalityAnalysisCommand implements CallableCommand {
         throw new RuntimeException(e);
       }
     }
-  }
-
-  private static boolean containsAll(String directory, String from, List<String> targets){
-    return directory != null && from != null && targets != null;
-  }
-
-  private static boolean emptyEntries(String directory, String from, List<String> targets){
-    return directory == null && from == null && targets == null;
   }
 }

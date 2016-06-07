@@ -2,6 +2,7 @@ package com.vesperin.cue;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Floats;
@@ -20,7 +21,9 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Huascar Sanchez
@@ -57,12 +60,11 @@ public class CueTest {
   );
 
   @Test public void testCueBasic() throws Exception {
-    final Cue cue = new Cue();
     final Set<String> expected = Sets.newHashSet(
       "file", "create", "text", "process", "code", "configuration"
     );
 
-    final List<String> concepts = cue.assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
+    final List<String> concepts = Cue.assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
 
     assertEquals(concepts.size(), expected.size());
 
@@ -70,25 +72,30 @@ public class CueTest {
       assertThat(expected.contains(each), is(true));
     }
 
-    final List<String> concepts2 = cue.assignedConcepts(Lists.newArrayList(SRC)).stream().sorted().collect(Collectors.toList());
+    final List<String> concepts2 = Cue.assignedConcepts(Lists.newArrayList(SRC)).stream()
+      .sorted().collect(Collectors.toList());
 
     assertEquals(concepts, concepts2);
   }
 
   @Test public void testCueCodeRegion() throws Exception {
-    final Cue cue = new Cue();
-
     final Set<String> names = Sets.newHashSet("processFile");
 
     final Set<String> expected = Sets.newHashSet(
       "file", "create", "text", "code", "configuration", "process"
     );
 
-    final Set<String> concepts = cue.assignedConcepts(SRC, names).stream()
+    final Set<String> concepts = Cue.assignedConcepts(SRC, names).stream()
       .collect(Collectors.toSet());
     assertThat(!concepts.isEmpty(), is(true));
 
     assertEquals(expected, concepts);
+
+    final Introspector introspector = Cue.newIntrospector();
+    final Set<String> c = introspector.assignedConcepts(SRC, names).stream()
+      .collect(Collectors.toSet());
+
+    assertEquals(expected, c);
 
     for(String each : concepts){
       assertThat(expected.contains(each), is(true));
@@ -96,51 +103,90 @@ public class CueTest {
 
   }
 
-  @Test public void testTypicalityScore() throws Exception {
-    final Cue cue = new Cue();
+  @Test public void testTypicalityScoreWithIntrospector() throws Exception {
 
-    final Set<String> relevant = new HashSet<>();
-    final List<Source> typical = cue.typicalityQuery(Code.corpus(), relevant, 1);
-    final Source mostTypical = typical.get(0);
+    final Set<String>   relevant  = new HashSet<>();
+    final Set<Source>   corpusSet = Code.corpus().stream().collect(Collectors.toSet());
+    final Source        typical   = Cue.issueTypicalityQuery(1, corpusSet, relevant).stream()
+      .findFirst().orElse(null);
+
+    assertNotNull(typical);
+
+    assertEquals(typical, Code.four());
+  }
+
+  @Test public void testRepresentingTypicality() throws Exception {
+    final Set<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toSet());
+
+    final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
+
+    final List<Source> representative = Cue.issueRepresentativeQuery(files, relevant);
+
+    assertTrue(!representative.isEmpty());
+  }
+
+
+  @Test public void testRepresentativeVsTypicalMeasures() throws Exception {
+    final Set<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toSet());
+
+    final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
+
+    final Introspector introspector   = Cue.newIntrospector();
+
+    final List<Source> represent  = introspector.issueRepresentativeQuery(files, relevant);
+    final List<Source> typical    = introspector.issueTypicalityQuery(represent.size(), files, relevant);
+
+    assertEquals(represent.size(), typical.size());
+
+  }
+
+  @Test public void testTypicalityScore() throws Exception {
+    final Set<String>   relevant     = new HashSet<>();
+    final Set<Source>   corpusSet    = Code.corpus().stream().collect(Collectors.toSet());
+    final List<Source>  typical      = Cue.issueTypicalityQuery(1, corpusSet, relevant);
+    final Source        mostTypical  = typical.stream().findFirst().orElse(null);
+
+    assertNotNull(mostTypical);
 
     assertEquals(mostTypical, Code.four());
   }
 
   @Test public void testMostTypicalSortingImplementation() throws Exception {
-    final List<Source> files = collectJavaFilesInResources().stream()
-      .map(Sources::from).collect(Collectors.toList());
+    final Set<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toSet());
 
     assertThat(!files.isEmpty(), is(true));
 
     final Set<String> relevant = new HashSet<>();
 
-    final Cue cue = new Cue();
-    final List<Source> typical = cue.typicalityQuery(files, relevant, 1);
+    final List<Source> typical = Cue.issueTypicalityQuery(1, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
 
   @Test public void testMostTypicalSortingWithDiffBandwidth() throws Exception {
-    final List<Source> files = collectJavaFilesInResources().stream()
-      .map(Sources::from).collect(Collectors.toList());
+    final Set<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toSet());
 
     assertThat(!files.isEmpty(), is(true));
 
-    final Set<String> relevant = new HashSet<>();
+    final Set<String> relevant = ImmutableSet.of("sort", "sortStack", "sortSet");
+    final List<Source> typical = Cue.issueTypicalityQuery(1, 0.3, files, relevant);
 
-    final Cue cue = new Cue();
-    final List<Source> typical1 = cue.typicalityQuery(files, relevant, 0.7, 1);
-    assertThat(!typical1.isEmpty(), is(true));
+    assertThat(!typical.isEmpty(), is(true));
   }
 
   @Test public void testMostFrequentConcept() throws Exception {
     final List<Source> files = collectJavaFilesInResources().stream()
       .map(Sources::from).collect(Collectors.toList());
 
-    final Cue cue = new Cue();
-    final List<String> concepts = cue.assignedConcepts(files);
+    final List<String> concepts = Cue.assignedConcepts(files);
+    final List<String> c = Cue.newIntrospector().assignedConcepts(files);
 
     assertThat(concepts.isEmpty(), is(false));
+    assertThat(c.isEmpty(), is(false));
 
   }
 

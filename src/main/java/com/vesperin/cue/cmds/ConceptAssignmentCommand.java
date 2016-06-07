@@ -26,6 +26,7 @@ public class ConceptAssignmentCommand implements CallableCommand {
   @Option(name = {"-d", "--directory"}, arity = 1, description = "extracts concepts from target directory.")
   private String directory = null;
 
+  @SuppressWarnings("FieldCanBeLocal")
   @Option(name = {"-k", "--topk"}, description = "k most typical source code.")
   private int topK = 10;
 
@@ -40,6 +41,11 @@ public class ConceptAssignmentCommand implements CallableCommand {
         return -1;
       }
 
+      if(topK < 1) {
+        System.err.println("Please use a valid topK value (see -help for information).");
+        return -1;
+      }
+
       return conceptAssignment(directory, from, topK);
     }
 
@@ -49,7 +55,6 @@ public class ConceptAssignmentCommand implements CallableCommand {
   private static int conceptAssignment(String target, String from, int topK) {
 
     final List<Source> corpus = new ArrayList<>();
-    final Cue cue = new Cue();
 
     try {
       // check if method file was given
@@ -58,13 +63,17 @@ public class ConceptAssignmentCommand implements CallableCommand {
         final List<String> allLines = IO.readLines(methods);
 
         final Set<String> relevantSet = Sources.populate(corpus, allLines);
-        System.out.println(cue.assignedConcepts(corpus, topK, relevantSet));
+        System.out.println(Cue.assignedConcepts(topK, corpus, relevantSet));
 
       } else if (target != null){
         final Path start = Paths.get(target);
         corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test")));
-        // the entire body declaration (e.g., all methods) is relevant
-        System.out.println(cue.assignedConcepts(corpus, topK));
+        if(topK == 10) {
+          System.out.println(Cue.assignedConcepts(corpus));
+        } else {
+          // the entire body declaration (e.g., all methods) is relevant
+          System.out.println(Cue.assignedConcepts(topK, corpus));
+        }
       } else {
         System.err.println("Unable to parse your input!");
         return -1;

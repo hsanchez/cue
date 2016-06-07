@@ -2,6 +2,9 @@ package com.vesperin.cue.utils;
 
 import com.google.common.base.Splitter;
 import com.google.common.io.Files;
+import com.vesperin.base.Context;
+import com.vesperin.base.EclipseJavaParser;
+import com.vesperin.base.JavaParser;
 import com.vesperin.base.Source;
 
 import java.io.File;
@@ -10,19 +13,31 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * @author Huascar Sanchez
  */
 public class Sources {
+  private static final JavaParser PARSER = new EclipseJavaParser();
+
   private Sources(){
     throw new Error("Cannot be instantiated");
+  }
+
+  /**
+   * Parses a source code.
+   *
+   * @param code the source code to parse
+   * @return the parsed context of the source code.
+   */
+  public static Context from(Source code){
+    Objects.requireNonNull(code);
+    return PARSER.parseJava(code);
   }
 
   /**
