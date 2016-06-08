@@ -106,13 +106,13 @@ public class IntrospectorTest {
   @Test public void testTypicalityScoreWithIntrospector() throws Exception {
 
     final Set<String>   relevant  = new HashSet<>();
-    final Set<Source>   corpusSet = Code.corpus().stream().collect(Collectors.toSet());
+    final Set<Source>   corpusSet = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
     final Source        typical   = IntrospectorWithCli.newIntrospector().issueTypicalityQuery(1, corpusSet, relevant).stream()
       .findFirst().orElse(null);
 
     assertNotNull(typical);
 
-    assertEquals(typical, Code.four());
+    assertEquals(typical, Corpus.four());
   }
 
   @Test public void testRepresentingTypicality() throws Exception {
@@ -144,13 +144,13 @@ public class IntrospectorTest {
 
   @Test public void testTypicalityScore() throws Exception {
     final Set<String>   relevant     = new HashSet<>();
-    final Set<Source>   corpusSet    = Code.corpus().stream().collect(Collectors.toSet());
+    final Set<Source>   corpusSet    = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
     final List<Source>  typical      = IntrospectorWithCli.newIntrospector().issueTypicalityQuery(1, corpusSet, relevant);
     final Source        mostTypical  = typical.stream().findFirst().orElse(null);
 
     assertNotNull(mostTypical);
 
-    assertEquals(mostTypical, Code.four());
+    assertEquals(mostTypical, Corpus.four());
   }
 
   @Test public void testMostTypicalSortingImplementation() throws Exception {
