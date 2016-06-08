@@ -5,6 +5,7 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
+import com.vesperin.cue.Introspector;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -55,6 +56,7 @@ public class ConceptAssignmentCommand implements CallableCommand {
   private static int conceptAssignment(String target, String from, int topK) {
 
     final List<Source> corpus = new ArrayList<>();
+    final Introspector cue    = Cue.newIntrospector();
 
     try {
       // check if method file was given
@@ -63,16 +65,16 @@ public class ConceptAssignmentCommand implements CallableCommand {
         final List<String> allLines = IO.readLines(methods);
 
         final Set<String> relevantSet = Sources.populate(corpus, allLines);
-        System.out.println(Cue.assignedConcepts(topK, corpus, relevantSet));
+        System.out.println(cue.assignedConcepts(topK, corpus, relevantSet));
 
       } else if (target != null){
         final Path start = Paths.get(target);
         corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test")));
         if(topK == 10) {
-          System.out.println(Cue.assignedConcepts(corpus));
+          System.out.println(cue.assignedConcepts(corpus));
         } else {
           // the entire body declaration (e.g., all methods) is relevant
-          System.out.println(Cue.assignedConcepts(topK, corpus));
+          System.out.println(cue.assignedConcepts(topK, corpus));
         }
       } else {
         System.err.println("Unable to parse your input!");

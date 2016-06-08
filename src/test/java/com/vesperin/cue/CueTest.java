@@ -64,7 +64,7 @@ public class CueTest {
       "file", "create", "text", "process", "code", "configuration"
     );
 
-    final List<String> concepts = Cue.assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
+    final List<String> concepts = Cue.newIntrospector().assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
 
     assertEquals(concepts.size(), expected.size());
 
@@ -72,7 +72,7 @@ public class CueTest {
       assertThat(expected.contains(each), is(true));
     }
 
-    final List<String> concepts2 = Cue.assignedConcepts(Lists.newArrayList(SRC)).stream()
+    final List<String> concepts2 = Cue.newIntrospector().assignedConcepts(Lists.newArrayList(SRC)).stream()
       .sorted().collect(Collectors.toList());
 
     assertEquals(concepts, concepts2);
@@ -85,7 +85,7 @@ public class CueTest {
       "file", "create", "text", "code", "configuration", "process"
     );
 
-    final Set<String> concepts = Cue.assignedConcepts(SRC, names).stream()
+    final Set<String> concepts = Cue.newIntrospector().assignedConcepts(SRC, names).stream()
       .collect(Collectors.toSet());
     assertThat(!concepts.isEmpty(), is(true));
 
@@ -107,7 +107,7 @@ public class CueTest {
 
     final Set<String>   relevant  = new HashSet<>();
     final Set<Source>   corpusSet = Code.corpus().stream().collect(Collectors.toSet());
-    final Source        typical   = Cue.issueTypicalityQuery(1, corpusSet, relevant).stream()
+    final Source        typical   = Cue.newIntrospector().issueTypicalityQuery(1, corpusSet, relevant).stream()
       .findFirst().orElse(null);
 
     assertNotNull(typical);
@@ -121,7 +121,7 @@ public class CueTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final List<Source> representative = Cue.issueRepresentativeQuery(files, relevant);
+    final List<Source> representative = Cue.newIntrospector().issueRepresentativeQuery(files, relevant);
 
     assertTrue(!representative.isEmpty());
   }
@@ -145,7 +145,7 @@ public class CueTest {
   @Test public void testTypicalityScore() throws Exception {
     final Set<String>   relevant     = new HashSet<>();
     final Set<Source>   corpusSet    = Code.corpus().stream().collect(Collectors.toSet());
-    final List<Source>  typical      = Cue.issueTypicalityQuery(1, corpusSet, relevant);
+    final List<Source>  typical      = Cue.newIntrospector().issueTypicalityQuery(1, corpusSet, relevant);
     final Source        mostTypical  = typical.stream().findFirst().orElse(null);
 
     assertNotNull(mostTypical);
@@ -161,7 +161,7 @@ public class CueTest {
 
     final Set<String> relevant = new HashSet<>();
 
-    final List<Source> typical = Cue.issueTypicalityQuery(1, files, relevant);
+    final List<Source> typical = Cue.newIntrospector().issueTypicalityQuery(1, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -173,7 +173,7 @@ public class CueTest {
     assertThat(!files.isEmpty(), is(true));
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortStack", "sortSet");
-    final List<Source> typical = Cue.issueTypicalityQuery(1, 0.3, files, relevant);
+    final List<Source> typical = Cue.newIntrospector().issueTypicalityQuery(1, 0.3, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -182,7 +182,7 @@ public class CueTest {
     final List<Source> files = collectJavaFilesInResources().stream()
       .map(Sources::from).collect(Collectors.toList());
 
-    final List<String> concepts = Cue.assignedConcepts(files);
+    final List<String> concepts = Cue.newIntrospector().assignedConcepts(files);
     final List<String> c = Cue.newIntrospector().assignedConcepts(files);
 
     assertThat(concepts.isEmpty(), is(false));

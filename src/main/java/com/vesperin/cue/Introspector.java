@@ -38,7 +38,7 @@ import static com.vesperin.cue.utils.Similarity.similarityScore;
 /**
  * @author Huascar Sanchez
  */
-interface Introspector {
+public interface Introspector {
 
   /**
    * Determine the concepts (capped to 10 suggestions) that appear in a list of
@@ -384,6 +384,14 @@ interface Introspector {
     );
   }
 
+  /**
+   /**
+   * Pulls the code of some method of interest.
+   *
+   * @param code source file
+   * @param relevant relevant method names
+   * @return the method snippet.
+   */
   static String relevantSegments(Source code, Set<String> relevant){
     final Context context = Sources.from(code);
 
