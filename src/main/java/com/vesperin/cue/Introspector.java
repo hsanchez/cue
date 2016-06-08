@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.vesperin.cue.utils.AstUtils.methodName;
@@ -71,14 +74,48 @@ interface Introspector {
    * @return oi new list of guessed concepts.
    */
   default List<String> assignedConcepts(int topK, List<Source> sources, Set<String> relevantSet){
-    final WordCounter counter = new WordCounter();
+
+    final ExecutorService service = newExecutorService(sources.size());
+    final WordCounter     counter = new WordCounter();
 
     for(Source each : sources){
-      counter.addAll(assignedConcepts(each, relevantSet));
+      service.execute(() -> counter.addAll(assignedConcepts(each, relevantSet)));
     }
+
+    // shuts down the executor service
+    shutdownExecutorService(service);
 
     return counter.mostFrequent(topK);
 
+  }
+
+  static ExecutorService newExecutorService(int scale){
+    final int cpus       = Runtime.getRuntime().availableProcessors();
+    scale                = scale > 10 ? 10 : scale;
+    final int maxThreads = ((cpus * scale) > 0 ? (cpus * scale) : 1);
+
+    return Executors.newFixedThreadPool(maxThreads);
+  }
+
+  static void shutdownExecutorService(ExecutorService service){
+    // wait for all of the executor threads to finish
+    service.shutdown();
+
+    try {
+      if (!service.awaitTermination(60, TimeUnit.SECONDS)) {
+        // pool didn't terminate after the first try
+        service.shutdownNow();
+      }
+
+
+      if (!service.awaitTermination(60, TimeUnit.SECONDS)) {
+        // pool didn't terminate after the second try
+        System.out.println("ERROR: executor service did not terminate after a second try.");
+      }
+    } catch (InterruptedException ex) {
+      service.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
   }
 
 
@@ -184,7 +221,7 @@ interface Introspector {
    *  implementing a similar functionality.
    */
   default List<Source> issueRepresentativeQuery(Set<Source> resultSet, Set<String> domain){
-    return issueRepresentativeQuery(5, resultSet, domain);
+    return issueRepresentativeQuery(5/*optimization: 5 most typical are enough*/, resultSet, domain);
   }
 
   /**
