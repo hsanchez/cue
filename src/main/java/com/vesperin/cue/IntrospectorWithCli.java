@@ -8,6 +8,7 @@ import com.vesperin.cue.cmds.ConceptAssignmentCommand;
 import com.vesperin.cue.cmds.RepresentativeAnalysisCommand;
 import com.vesperin.cue.cmds.TypicalityAnalysisCommand;
 
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -15,13 +16,24 @@ import java.util.concurrent.Future;
 /**
  * @author Huascar Sanchez
  */
-public class Cue implements Introspector {
+public class IntrospectorWithCli implements Introspector {
+  private IntrospectorWithCli(){}
 
   /**
    * @return a new Introspector object.
    */
   public static Introspector newIntrospector(){
-    return new Cue();
+    return new IntrospectorWithCli();
+  }
+
+  /**
+   * Builds its own CLI.
+   *
+   * @param builder non-configured CLI builder.
+   * @return a configured CLI builder.
+   */
+  private Cli<CallableCommand> buildCli(CliBuilder<CallableCommand> builder){
+    return Objects.requireNonNull(builder).build();
   }
 
   private static <T extends CallableCommand> void execute(T cmd) {
@@ -52,13 +64,17 @@ public class Cue implements Introspector {
   }
 
   public static void main(String[] args) {
-    final CliBuilder<CallableCommand> builder = Cli.<CallableCommand>builder("cue")
+
+    final IntrospectorWithCli   cue = new IntrospectorWithCli();
+
+    final Cli<CallableCommand>  cueCli = cue.buildCli(Cli.<CallableCommand>builder("cue")
       .withDescription("Cue CLI")
       .withCommand(TypicalityAnalysisCommand.class)
       .withCommand(ConceptAssignmentCommand.class)
-      .withCommand(RepresentativeAnalysisCommand.class);
+      .withCommand(RepresentativeAnalysisCommand.class)
+    );
 
-    executeCli(builder.build(), args);
+    executeCli(cueCli, args);
   }
 
 }

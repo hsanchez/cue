@@ -5,7 +5,7 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.collect.ImmutableSet;
 import com.vesperin.base.Source;
-import com.vesperin.cue.Cue;
+import com.vesperin.cue.IntrospectorWithCli;
 import com.vesperin.cue.Introspector;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
@@ -92,7 +92,7 @@ public class RepresentativeAnalysisCommand implements CallableCommand {
   }
 
   private void mostRepresentative(Set<String> relevant, List<Source> corpus) {
-    final Introspector    cue       = Cue.newIntrospector();
+    final Introspector    cue       = IntrospectorWithCli.newIntrospector();
     final Set<Source>     corpusSet = corpus.stream().collect(Collectors.toSet());
     final Stream<Source>  stream    = cue.issueRepresentativeQuery(corpusSet, relevant).stream();
 
