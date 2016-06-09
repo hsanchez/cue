@@ -220,8 +220,8 @@ public interface Introspector {
    * @return a smaller list of typical source objects representing the whole set of source objects
    *  implementing a similar functionality.
    */
-  default List<Source> issueRepresentativeQuery(Set<Source> resultSet, Set<String> domain){
-    return issueRepresentativeQuery(5/*optimization: 5 most typical are enough*/, resultSet, domain);
+  default List<Source> representativeTypicalityQuery(Set<Source> resultSet, Set<String> domain){
+    return representativeTypicalityQuery(5/*optimization: 5 most typical are enough*/, resultSet, domain);
   }
 
   /**
@@ -235,7 +235,7 @@ public interface Introspector {
    * @return a smaller list of typical source objects representing the whole set of source objects
    *  implementing a similar functionality.
    */
-  default List<Source> issueRepresentativeQuery(int topk, Set<Source> resultSet, Set<String> domain) {
+  default List<Source> representativeTypicalityQuery(int topk, Set<Source> resultSet, Set<String> domain) {
     final Map<Source, List<Source>> region = interestingRegion(topk, resultSet, domain);
 
     final Comparator<Map.Entry<Source, List<Source>>> byValue =
@@ -260,7 +260,7 @@ public interface Introspector {
   default Map<Source, List<Source>> interestingRegion(int topk, Set<Source> resultSet,
           Set<String> domain) {
 
-    final List<Source>  topKList    = issueTypicalityQuery(topk/*tunable*/, resultSet, domain);
+    final List<Source>  topKList    = typicalityQuery(topk/*tunable*/, resultSet, domain);
 
     final Set<Source>   typicalSet  = new LinkedHashSet<>();
     typicalSet.addAll(topKList);
@@ -318,15 +318,15 @@ public interface Introspector {
    * similar implementations of that functionality. It uses 0.3 as a default
    * bandwidth parameter.
    *
-   * See {@link #issueTypicalityQuery(int, Set, Processor)} for additional details.
+   * See {@link #typicalityQuery(int, Set, Processor)} for additional details.
    *
    * @param topK top k most typical implementations.
    * @param resultSet a set of source objects implementing a similar functionality.
    * @param relevant relevant methods names to introspect
    * @return a new list of k most typical source objects implementing a similar functionality.
    */
-  default List<Source> issueTypicalityQuery(int topK, Set<Source> resultSet, Set<String> relevant){
-    return issueTypicalityQuery(topK, 0.3, resultSet, relevant);
+  default List<Source> typicalityQuery(int topK, Set<Source> resultSet, Set<String> relevant){
+    return typicalityQuery(topK, 0.3, resultSet, relevant);
   }
 
   /**
@@ -340,10 +340,9 @@ public interface Introspector {
    * @param relevant relevant methods names to introspect
    * @return a new list of k most typical source objects implementing a similar functionality.
    */
-  default List<Source> issueTypicalityQuery(int topK, double h, Set<Source> resultSet, Set<String> relevant){
-    return issueTypicalityQuery(topK, resultSet, new SegmentsTypicalityProcessor(h, relevant));
+  default List<Source> typicalityQuery(int topK, double h, Set<Source> resultSet, Set<String> relevant){
+    return typicalityQuery(topK, resultSet, new SegmentsTypicalityProcessor(h, relevant));
   }
-
 
 
   /**
@@ -365,8 +364,8 @@ public interface Introspector {
    * @return a new list of the most typical source code implementing a functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
-  default <T> List<Source> issueTypicalityQuery(int topK, Set<Source> resultSet,
-                                                Processor <T> queryProcessor){
+  default <T> List<Source> typicalityQuery(int topK, Set<Source> resultSet,
+              Processor <T> queryProcessor){
     return queryProcessor.process(topK, resultSet);
   }
 

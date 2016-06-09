@@ -64,7 +64,7 @@ public class IntrospectorTest {
       "file", "create", "text", "process", "code", "configuration"
     );
 
-    final List<String> concepts = IntrospectorWithCli.newIntrospector().assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
+    final List<String> concepts = SourceIntrospector.newIntrospector().assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
 
     assertEquals(concepts.size(), expected.size());
 
@@ -72,7 +72,7 @@ public class IntrospectorTest {
       assertThat(expected.contains(each), is(true));
     }
 
-    final List<String> concepts2 = IntrospectorWithCli.newIntrospector().assignedConcepts(Lists.newArrayList(SRC)).stream()
+    final List<String> concepts2 = SourceIntrospector.newIntrospector().assignedConcepts(Lists.newArrayList(SRC)).stream()
       .sorted().collect(Collectors.toList());
 
     assertEquals(concepts, concepts2);
@@ -85,13 +85,13 @@ public class IntrospectorTest {
       "file", "create", "text", "code", "configuration", "process"
     );
 
-    final Set<String> concepts = IntrospectorWithCli.newIntrospector().assignedConcepts(SRC, names).stream()
+    final Set<String> concepts = SourceIntrospector.newIntrospector().assignedConcepts(SRC, names).stream()
       .collect(Collectors.toSet());
     assertThat(!concepts.isEmpty(), is(true));
 
     assertEquals(expected, concepts);
 
-    final Introspector introspector = IntrospectorWithCli.newIntrospector();
+    final Introspector introspector = SourceIntrospector.newIntrospector();
     final Set<String> c = introspector.assignedConcepts(SRC, names).stream()
       .collect(Collectors.toSet());
 
@@ -107,7 +107,7 @@ public class IntrospectorTest {
 
     final Set<String>   relevant  = new HashSet<>();
     final Set<Source>   corpusSet = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final Source        typical   = IntrospectorWithCli.newIntrospector().issueTypicalityQuery(1, corpusSet, relevant).stream()
+    final Source        typical   = SourceIntrospector.newIntrospector().typicalityQuery(1, corpusSet, relevant).stream()
       .findFirst().orElse(null);
 
     assertNotNull(typical);
@@ -121,7 +121,7 @@ public class IntrospectorTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final List<Source> representative = IntrospectorWithCli.newIntrospector().issueRepresentativeQuery(files, relevant);
+    final List<Source> representative = SourceIntrospector.newIntrospector().representativeTypicalityQuery(files, relevant);
 
     assertTrue(!representative.isEmpty());
   }
@@ -133,10 +133,10 @@ public class IntrospectorTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final Introspector introspector   = IntrospectorWithCli.newIntrospector();
+    final Introspector introspector   = SourceIntrospector.newIntrospector();
 
-    final List<Source> represent  = introspector.issueRepresentativeQuery(files, relevant);
-    final List<Source> typical    = introspector.issueTypicalityQuery(represent.size(), files, relevant);
+    final List<Source> represent  = introspector.representativeTypicalityQuery(files, relevant);
+    final List<Source> typical    = introspector.typicalityQuery(represent.size(), files, relevant);
 
     assertEquals(represent.size(), typical.size());
 
@@ -145,7 +145,7 @@ public class IntrospectorTest {
   @Test public void testTypicalityScore() throws Exception {
     final Set<String>   relevant     = new HashSet<>();
     final Set<Source>   corpusSet    = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final List<Source>  typical      = IntrospectorWithCli.newIntrospector().issueTypicalityQuery(1, corpusSet, relevant);
+    final List<Source>  typical      = SourceIntrospector.newIntrospector().typicalityQuery(1, corpusSet, relevant);
     final Source        mostTypical  = typical.stream().findFirst().orElse(null);
 
     assertNotNull(mostTypical);
@@ -161,7 +161,7 @@ public class IntrospectorTest {
 
     final Set<String> relevant = new HashSet<>();
 
-    final List<Source> typical = IntrospectorWithCli.newIntrospector().issueTypicalityQuery(1, files, relevant);
+    final List<Source> typical = SourceIntrospector.newIntrospector().typicalityQuery(1, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -173,7 +173,7 @@ public class IntrospectorTest {
     assertThat(!files.isEmpty(), is(true));
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortStack", "sortSet");
-    final List<Source> typical = IntrospectorWithCli.newIntrospector().issueTypicalityQuery(1, 0.3, files, relevant);
+    final List<Source> typical = SourceIntrospector.newIntrospector().typicalityQuery(1, 0.3, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -182,8 +182,8 @@ public class IntrospectorTest {
     final List<Source> files = collectJavaFilesInResources().stream()
       .map(Sources::from).collect(Collectors.toList());
 
-    final List<String> concepts = IntrospectorWithCli.newIntrospector().assignedConcepts(files);
-    final List<String> c = IntrospectorWithCli.newIntrospector().assignedConcepts(files);
+    final List<String> concepts = SourceIntrospector.newIntrospector().assignedConcepts(files);
+    final List<String> c = SourceIntrospector.newIntrospector().assignedConcepts(files);
 
     assertThat(concepts.isEmpty(), is(false));
     assertThat(c.isEmpty(), is(false));
