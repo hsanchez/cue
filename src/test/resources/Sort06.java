@@ -1,17 +1,17 @@
 import java.util.Arrays;
- 
+
 public class Sort06 {
     public static void main(String[] args) {
         int[] nums = {1, 4, 5, 3, -6, 3, 7, 10, -2, -5};
         sort(nums);
         System.out.println(Arrays.toString(nums));
     }
- 
-	// StoogeSort
+
+    // StoogeSort
     public static void sort(int[] L) {
         stoogeSort(L, 0, L.length - 1);
     }
- 
+
     public static void stoogeSort(int[] L, int i, int j) {
         if (L[j] < L[i]) {
             int tmp = L[i];

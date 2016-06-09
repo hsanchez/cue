@@ -1,7 +1,6 @@
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort01.java::sort(int[]):int[]
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort02.java::sort(int[]):int[]
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort04.java::sort(int[]):int[]
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort05.java::sort(int[]):int[]
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort09.java::sort(int[]):void
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort10.java::sort(int[]):void
-/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort12.java::sort(java.util.List):java.util.List
+/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort05.java::bs(int[])::int[]
+/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort09.java::sort(int[])::void
+/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort08.java::sort(int[])::void
+/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort04.java::ss(int[])::int[]
+/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort02.java::defaultsrt(int[])::int[]
+/Users/hsanchez/dev/vesperin/cue/src/test/resources/Sort01.java::sort(int[])::int[]
