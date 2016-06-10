@@ -99,7 +99,7 @@ public class RepresentativeAnalysisCommand implements CallableCommand {
     final Optional<Source> optional = stream.findFirst();
     if(optional.isPresent()){
       final Source representative = optional.get();
-      final String snippet = Introspector.relevantSegments(representative, relevant);
+      final String snippet = Introspector.methodCode(representative, relevant);
       System.out.println(representative.getName());
       System.out.println(snippet);
       System.out.println();

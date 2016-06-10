@@ -131,7 +131,7 @@ public class TypicalityAnalysisCommand implements CallableCommand {
 
         for(Source each : result){
 
-          final String snippet = Introspector.relevantSegments(each, relevant);
+          final String snippet = Introspector.methodCode(each, relevant);
           if(!Strings.isNullOrEmpty(snippet)){
 
             if(!onScreen) {

@@ -141,7 +141,7 @@ public interface Introspector {
     final Context   context = Sources.from(code);
 
     final UnitLocation unit = relevant.isEmpty()
-      ? locatedUnit(context)
+      ? locatedCompilationUnit(context)
       : locatedMethod(context, relevant);
 
     if(unit == null) return ImmutableList.of();
@@ -286,7 +286,7 @@ public interface Introspector {
 
     final Map<Source, String> segments = new HashMap<>();
     for(Source each : resultSet){
-      segments.put(each, relevantSegments(each, relevant));
+      segments.put(each, segmentsCode(each, relevant));
     }
 
     final Map<Source, List<Source>> region = new HashMap<>();
@@ -376,28 +376,45 @@ public interface Introspector {
       .orElse(null);
   }
 
-  static UnitLocation locatedUnit(Context context){
+  static UnitLocation locatedCompilationUnit(Context context){
     return new ProgramUnitLocation(
       context.getCompilationUnit(),
       Locations.locate(context.getCompilationUnit())
     );
   }
 
+  static UnitLocation locateUnit(Source code, Set<String> relevant){
+    final Context context = Sources.from(code);
+
+    return (relevant.isEmpty()
+      ? locatedCompilationUnit(context)
+      : locatedMethod(context, relevant)
+    );
+  }
+
   /**
-   /**
-   * Pulls the code of some method of interest.
+   * Pulls the code some method of interest.
    *
    * @param code source file
    * @param relevant relevant method names
-   * @return the method snippet.
+   * @return the method snippet
    */
-  static String relevantSegments(Source code, Set<String> relevant){
-    final Context context = Sources.from(code);
+  static String methodCode(Source code, Set<String> relevant){
+    final UnitLocation located = locateUnit(code, relevant);
+    final SourceSelection selection = new SourceSelection(ImmutableList.of(located));
+    return selection.toCode();
+  }
 
-    final UnitLocation unit   = (relevant.isEmpty()
-      ? locatedUnit(context)
-      : locatedMethod(context, relevant)
-    );
+  /**
+   /**
+   * Pulls the code of some segments of interest.
+   *
+   * @param code source file
+   * @param relevant relevant method names
+   * @return the segments snippet.
+   */
+  static String segmentsCode(Source code, Set<String> relevant){
+    final UnitLocation unit   = locateUnit(code, relevant);
 
     if(Objects.isNull(unit)) // returns nothing
       return "";
@@ -519,7 +536,7 @@ public interface Introspector {
     }
 
     @Override public Feature<String> from(Source source) {
-      return new CodeFeature(source, relevantSegments(source, relevant));
+      return new CodeFeature(source, segmentsCode(source, relevant));
     }
 
 
