@@ -12,7 +12,7 @@ import java.util.Objects;
 /**
  * @author Huascar Sanchez
  */
-public interface IntrospectorWithCli extends Introspector {
+interface IntrospectorWithCli extends Introspector {
   /**
    * Builds its own 'default' CLI.
    *
