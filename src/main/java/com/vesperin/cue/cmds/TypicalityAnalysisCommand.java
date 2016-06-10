@@ -5,7 +5,7 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.base.Strings;
 import com.vesperin.base.Source;
-import com.vesperin.cue.SourceIntrospector;
+import com.vesperin.cue.Cue;
 import com.vesperin.cue.Introspector;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
@@ -118,7 +118,7 @@ public class TypicalityAnalysisCommand implements CallableCommand {
 
   private void performTypicalityQuery(List<Source> corpus, Set<String> relevant) {
 
-    final Introspector cue = SourceIntrospector.newIntrospector();
+    final Introspector cue = Cue.newIntrospector();
     final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
     final List<Source> result = cue.typicalityQuery(topK, bandwidth, corpusSet, relevant);
     if(result.isEmpty()){
