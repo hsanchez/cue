@@ -43,8 +43,7 @@ libraryDependencies ++= Seq(
     "com.google.guava" % "guava" % "19.0",
     "com.novocode" % "junit-interface" % "0.11" % "test",
     "junit" % "junit" % "4.12",
-    "com.github.rvesse" % "airline" % "2.1.0",
-    "org.jgrapht" % "jgrapht-core" % "0.9.2"
+    "com.github.rvesse" % "airline" % "2.1.0"
 )
 
 assemblyExcludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
