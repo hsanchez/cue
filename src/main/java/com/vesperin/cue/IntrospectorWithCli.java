@@ -2,17 +2,55 @@ package com.vesperin.cue;
 
 import com.github.rvesse.airline.Cli;
 import com.github.rvesse.airline.builder.CliBuilder;
-import com.vesperin.cue.cmds.CallableCommand;
 import com.vesperin.cue.cmds.ConceptAssignmentCommand;
 import com.vesperin.cue.cmds.RepresentativeAnalysisCommand;
 import com.vesperin.cue.cmds.TypicalityAnalysisCommand;
 
 import java.util.Objects;
+import java.util.concurrent.Callable;
 
 /**
  * @author Huascar Sanchez
  */
-interface IntrospectorWithCli extends Introspector {
+public interface IntrospectorWithCli extends Introspector {
+
+  /**
+   * Checks if all the expected number of arguments are non null.
+   *
+   * @param args args to test.
+   * @return true if all args are non null; false otherwise.
+   */
+  static boolean allNonNull(int expected, Object... args){
+    if(Objects.isNull(args))    return false;
+    if(expected < 1)            return false;
+    if(expected > args.length)  return false;
+
+    for(int idx = 0; idx < expected; idx++){
+      if(Objects.isNull(args[idx])) return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Checks if all the expected number of arguments are null.
+   *
+   * @param args args to test.
+   * @return true if all args are null; false otherwise.
+   */
+  static boolean allNull(int expected, Object... args){
+
+    if(Objects.isNull(args))    return true;
+    if(expected < 1)            return true;
+    if(expected > args.length)  return true;
+
+
+    for(int idx = 0; idx < expected; idx++){
+      if(!Objects.isNull(args[idx])) return false;
+    }
+
+    return true;
+  }
 
   /**
    * @return a new CLI runner.
@@ -20,12 +58,12 @@ interface IntrospectorWithCli extends Introspector {
   Runner getCliRunner();
 
   /**
-   * Runs a {@link CallableCommand CLI command}.
+   * Runs a {@link CliCommand CLI command}.
    *
    * @param command CLI command
    * @return Runner's result.
    */
-  default Result run(CallableCommand command) {
+  default Result run(CliCommand command) {
     return run(command, getCliRunner());
   }
 
@@ -35,7 +73,7 @@ interface IntrospectorWithCli extends Introspector {
    * @param withRunner CLI's runner strategy.
    * @return Runner's result.
    */
-  default Result run(CallableCommand command, Runner withRunner){
+  default Result run(CliCommand command, Runner withRunner){
     return withRunner.run(command);
   }
 
@@ -44,8 +82,8 @@ interface IntrospectorWithCli extends Introspector {
    *
    * @return the new Introspector's CLI
    */
-  default Cli<CallableCommand> buildCli(){
-    return buildCli(Cli.<CallableCommand>builder("cue")
+  default Cli<CliCommand> buildCli(){
+    return buildCli(Cli.<CliCommand>builder("cue")
       .withDescription("Cue CLI")
       .withCommand(TypicalityAnalysisCommand.class)
       .withCommand(ConceptAssignmentCommand.class)
@@ -59,8 +97,21 @@ interface IntrospectorWithCli extends Introspector {
    * @param builder non-configured CLI builder.
    * @return a configured CLI builder.
    */
-  default Cli<CallableCommand> buildCli(CliBuilder<CallableCommand> builder){
+  default Cli<CliCommand> buildCli(CliBuilder<CliCommand> builder){
     return Objects.requireNonNull(builder).build();
+  }
+
+  /**
+   * CLI command.
+   */
+  interface CliCommand extends Callable<Integer> {
+    /**
+     * Runs the command and returns an exit code that
+     * the application should return.
+     *
+     * @return exit code
+     */
+    @Override Integer call() throws Exception;
   }
 
   /**
@@ -73,7 +124,7 @@ interface IntrospectorWithCli extends Introspector {
      * @param command CLI command.
      * @return output
      */
-    Result run(CallableCommand command);
+    Result run(CliCommand command);
   }
 
   /**

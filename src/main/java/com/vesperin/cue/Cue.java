@@ -2,7 +2,6 @@ package com.vesperin.cue;
 
 import com.github.rvesse.airline.Cli;
 import com.github.rvesse.airline.parser.errors.ParseException;
-import com.vesperin.cue.cmds.CallableCommand;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -33,7 +32,7 @@ public class Cue implements IntrospectorWithCli {
   /**
    * @return a new Introspector object.
    */
-  public static Introspector newIntrospector(Runner runner){
+  private static Introspector newIntrospector(Runner runner){
     Objects.requireNonNull(runner);
     return new Cue(runner);
   }
@@ -64,9 +63,9 @@ public class Cue implements IntrospectorWithCli {
     Objects.requireNonNull(introspector);
     Objects.requireNonNull(args);
 
-    final Cli<CallableCommand>  cueCli  = introspector.buildCli();
+    final Cli<CliCommand>  cueCli  = introspector.buildCli();
     try {
-      final CallableCommand cmd = cueCli.parse(args);
+      final CliCommand cmd = cueCli.parse(args);
       introspector.run(cmd);
     } catch (ParseException e) {
       System.err.println("Parser error: " + e.getMessage());
@@ -82,7 +81,7 @@ public class Cue implements IntrospectorWithCli {
   }
 
   private static class Console implements Runner {
-    @Override public Result run(CallableCommand command) {
+    @Override public Result run(CliCommand command) {
       try {
         final ExecutorService service = Executors.newSingleThreadExecutor();
         final Future<Integer> result  = service.submit(command);

@@ -6,6 +6,7 @@ import com.github.rvesse.airline.annotations.Option;
 import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
 import com.vesperin.cue.Introspector;
+import com.vesperin.cue.IntrospectorWithCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -20,7 +21,7 @@ import java.util.Set;
  * @author Huascar Sanchez
  */
 @Command(name = "concepts", description = "Recognizing implied concepts in code")
-public class ConceptAssignmentCommand implements CallableCommand {
+public class ConceptAssignmentCommand implements IntrospectorWithCli.CliCommand {
 
   @Inject HelpOption<TypicalityAnalysisCommand> help;
 

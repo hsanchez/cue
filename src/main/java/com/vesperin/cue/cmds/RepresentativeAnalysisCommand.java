@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableSet;
 import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
 import com.vesperin.cue.Introspector;
+import com.vesperin.cue.IntrospectorWithCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -21,14 +22,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.vesperin.cue.cmds.CallableCommand.allNonNull;
-import static com.vesperin.cue.cmds.CallableCommand.allNull;
+import static com.vesperin.cue.IntrospectorWithCli.allNonNull;
+import static com.vesperin.cue.IntrospectorWithCli.allNull;
 
 /**
  * @author Huascar Sanchez
  */
 @Command(name = "represent", description = "Find most representative object in set")
-public class RepresentativeAnalysisCommand implements CallableCommand {
+public class RepresentativeAnalysisCommand implements IntrospectorWithCli.CliCommand {
 
   @Inject
   HelpOption<TypicalityAnalysisCommand> help;
