@@ -2,6 +2,7 @@ package com.vesperin.cue.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -13,6 +14,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * @author Huascar Sanchez
@@ -21,6 +24,34 @@ public class IO {
 
   private IO(){
     throw new Error("Utility class");
+  }
+
+  /**
+   * Reads all lines in a file.
+   *
+   * @param filepath the path of the file to read.
+   * @return a list of lines in the file.
+   */
+  public static List<String> readLines(Path filepath){
+    try {
+      return Files.readAllLines(filepath, Charset.defaultCharset());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Collect files in a given location.
+   *
+   * @param path the path to the directory to access
+   * @param extension extension of files to collect
+   * @param keywords hints which files to ignore (based on their names)
+   * @return the list of files matching a given extension.
+   */
+  public static List<File> collectFiles(Path path, String extension, String... keywords){
+    return collectFiles(path.toFile(), extension)
+      .stream().filter(ignoreFilesContaining(keywords))
+      .collect(Collectors.toList());
   }
 
   /**
@@ -76,5 +107,18 @@ public class IO {
       });
     } catch (IOException ignored){}
 
+  }
+
+  private static Predicate<File> ignoreFilesContaining(String... ignore){
+    Predicate<File> predicate = null;
+    for(String each : ignore){
+      if(predicate == null){
+        predicate = (f -> !f.getName().contains(each));
+      }
+
+      predicate = predicate.or((f -> !f.getName().contains(each)));
+    }
+
+    return predicate;
   }
 }

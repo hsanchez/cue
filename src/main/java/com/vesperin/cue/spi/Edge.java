@@ -1,38 +1,24 @@
 package com.vesperin.cue.spi;
 
 /**
- * A directed, weighted edge in a graph
- *
- * @param <T>
+ * @author Huascar Sanchez
  */
-public interface Edge<T> {
+public interface Edge <V> {
+  /**
+   * @return the edge's source vertex
+   */
+  V from();
 
   /**
-   * Get the ending vertex
    *
-   * @return ending vertex
+   * @return the edge's destination vertex
    */
-  Vertex<T> getTo();
+  V to();
 
   /**
-   * Get the starting vertex
-   *
-   * @return starting vertex
+   * @return the edge's weight/cost
    */
-  Vertex<T> getFrom();
+  double weight();
 
-  /**
-   * Get the cost of the edge
-   *
-   * @return cost of the edge
-   */
-  int getCost();
-
-  /**
-   * String rep of edge
-   *
-   * @return string rep with from/to vertex names and cost
-   */
   @Override String toString();
 }
-

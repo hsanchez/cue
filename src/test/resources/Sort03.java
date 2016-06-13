@@ -17,7 +17,7 @@ public class Sort03 {
 			System.out.println(i);
 		}
 	}
-	
+
 	public static void sort(List<Integer> unsorted) {
 		Collections.sort(unsorted);
 	}

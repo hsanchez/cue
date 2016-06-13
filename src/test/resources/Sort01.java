@@ -10,7 +10,7 @@ public class Sort01 {
 			System.out.println(sorted[i]);
 		}
 	}
-	
+
 	public static int[] sort(int[] unsorted) {
 		int[] sorted = new int[unsorted.length];
 		for (int i=0;i<unsorted.length;i++) {

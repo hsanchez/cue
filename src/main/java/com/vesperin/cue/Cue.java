@@ -1,294 +1,72 @@
 package com.vesperin.cue;
 
 import com.github.rvesse.airline.Cli;
-import com.github.rvesse.airline.builder.CliBuilder;
 import com.github.rvesse.airline.parser.errors.ParseException;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.primitives.Doubles;
-import com.vesperin.base.Context;
-import com.vesperin.base.EclipseJavaParser;
-import com.vesperin.base.JavaParser;
-import com.vesperin.base.Source;
-import com.vesperin.base.locations.Location;
-import com.vesperin.base.locations.Locations;
-import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.bsg.SegmentationGraph;
-import com.vesperin.cue.bsg.visitors.BlockSegmentationVisitor;
-import com.vesperin.cue.bsg.visitors.TokenIterator;
-import com.vesperin.cue.cmds.CommandRunnable;
-import com.vesperin.cue.cmds.Concepts;
-import com.vesperin.cue.cmds.Typicality;
-import com.vesperin.cue.text.WordCounter;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static com.vesperin.cue.bsg.AstUtils.methodDeclaration;
-import static com.vesperin.cue.utils.Similarity.similarityScore;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * @author Huascar Sanchez
  */
-public class Cue {
-  private static final double SMOOTHING_FACTOR = 0.3;
-  private final JavaParser parser;
+public class Cue implements IntrospectorWithCli {
+  private final Runner runner;
 
-  public Cue(){
-    this(new EclipseJavaParser());
-  }
-
-  private Cue(JavaParser parser){
-    this.parser = parser;
-  }
-
-  private Context parse(Source code){
-    return parser.parseJava(code);
+  /**
+   * Constructs a new Introspector with a CLI runner.
+   * @param runner a new Cli Runner.
+   */
+  private Cue(Runner runner){
+    this.runner = runner;
   }
 
   /**
-   * Determine the concepts (capped to 10 suggestions) that appear in oi list of
-   * sources.
-   *
-   * @param sources list of sources to inspect.
-   * @return oi new list of guessed concepts.
+   * @return a new Introspector object.
    */
-  public List<String> assignedConcepts(List<Source> sources){
-    return assignedConcepts(sources, 10);
+  public static Introspector newIntrospector(){
+    return newIntrospector(new Console());
   }
 
   /**
-   * Determine the concepts that appear in oi list of
-   * sources.
-   *
-   * @param sources list of sources to inspect.
-   * @return oi new list of guessed concepts.
+   * @return a new Introspector object.
    */
-  public List<String> assignedConcepts(List<Source> sources, int topK){
-    return assignedConcepts(sources, topK, ImmutableSet.of());
-  }
-
-
-  /**
-   * Determine the concepts that appear in oi list of
-   * sources.
-   *
-   * @param sources list of sources to inspect.
-   * @param topK k most frequent concepts in the list of sources.
-   * @param relevantSet set of relevant method names
-   * @return oi new list of guessed concepts.
-   */
-  public List<String> assignedConcepts(List<Source> sources, int topK, Set<String> relevantSet){
-    final WordCounter counter = new WordCounter();
-
-    for(Source each : sources){
-      counter.addAll(assignedConcepts(each, relevantSet));
-    }
-
-    return counter.mostFrequent(topK);
-
+  private static Introspector newIntrospector(Runner runner){
+    Objects.requireNonNull(runner);
+    return new Cue(runner);
   }
 
   /**
-   * Determine the concepts (capped to 10 suggestions) that appear in oi given source code.
-   *
-   * @param code source code to introspect.
-   * @return oi new list of guessed concepts.
+   * @return a new IntrospectorWithCli object.
    */
-  public List<String> assignedConcepts(Source code){
-    return assignedConcepts(code, ImmutableSet.of());
-
+  private static IntrospectorWithCli newIntrospectorWithCli(){
+    return (IntrospectorWithCli) newIntrospector();
   }
 
   /**
-   * Determine the concepts (capped to 10 suggestions) that appear in oi given source code.
+   * Executes the CLI given some arguments.
    *
-   * @param code source code to introspect.
-   * @param relevant set of relevant method names. At least one match should exist.
-   * @return oi new list of guessed concepts.
+   * @param args command arguments.
    */
-  public List<String> assignedConcepts(Source code, final Set<String> relevant){
-    final Context   context = parse(code);
-
-    final List<UnitLocation> unitLocations = new ArrayList<>();
-    if(relevant.isEmpty()){
-      unitLocations.addAll(context.locateUnit(Locations.locate(context.getCompilationUnit())));
-    } else {
-      unitLocations.addAll(
-        context.locateMethods().stream().filter(
-          m -> relevant.contains(
-            methodDeclaration(m.getUnitNode()).getName().getIdentifier()
-          )
-        ).collect(Collectors.toList())
-      );
-
-    }
-
-    final Stream<UnitLocation>    scopeStream   = unitLocations.stream();
-    final Optional<UnitLocation>  optionalScope = scopeStream.findFirst();
-
-    if(!optionalScope.isPresent()) return ImmutableList.of();
-
-    final Location scope = optionalScope.get();
-
-    return assignedConcepts(scope, 10);
-
-  }
-
-  private List<String> assignedConcepts(Location locatedUnit, int topK){
-    //DONE
-    ensureValidInput(locatedUnit, topK);
-
-    // generate optimal segmentation graph
-    final SegmentationGraph bsg = generateSegmentationGraph(locatedUnit);
-    final Set<Location> blackList = bsg.blacklist(locatedUnit).stream()
-      .collect(Collectors.toSet());
-
-    return generateInterestingConcepts(topK, locatedUnit, blackList);
-  }
-
-  private List<String> generateInterestingConcepts(int topK, Location locatedUnit, Set<Location> blackList) {
-    //TODO3
-    // collect frequent words outside the blacklist of locations
-    final TokenIterator extractor   = new TokenIterator(blackList);
-    ((UnitLocation)locatedUnit).getUnitNode().accept(extractor);
-
-    final WordCounter wordCounter = new WordCounter(extractor.getItems());
-
-    return wordCounter.mostFrequent(topK);
-  }
-
-  private SegmentationGraph generateSegmentationGraph(Location locatedUnit) {
-    final BlockSegmentationVisitor blockSegmentation = new BlockSegmentationVisitor(locatedUnit);
-    ((UnitLocation)locatedUnit).getUnitNode().accept(blockSegmentation);
-
-    return blockSegmentation.getBSG();
-  }
-
-  private static void ensureValidInput(Location scope, int topK) {
-    Objects.requireNonNull(scope);
-
-    Preconditions.checkArgument(topK > 0);
+  private static void executeCli(String[] args){
+    executeCli(newIntrospectorWithCli(), args);
   }
 
   /**
-   * Finds the top k most typical implementation of some functionality in oi set of
-   * similar implementations of that functionality. It uses 0.3 as oi default
-   * bandwidth parameter.
+   * Executes the CLI of an Introspector object and its string arguments.
    *
-   * See {@link #typicalityQuery(List, double, int)} for additional details.
-   *
-   * @param similarCode oi list of source code implementing similar functionality.
-   * @param topK top k most typical implementations.
-   * @return oi new list of the most typical source code implementing oi functionality.
+   * @param introspector Introspector object.
+   * @param args the command arguments.
    */
-  public List<Source> typicalityQuery(List<Source> similarCode, int topK){
-    return typicalityQuery(similarCode, SMOOTHING_FACTOR, topK);
+  private static void executeCli(IntrospectorWithCli introspector, String[] args){
+    Objects.requireNonNull(introspector);
+    Objects.requireNonNull(args);
 
-  }
-
-  /**
-   * Finds the top k most typical implementation of some functionality in oi set of
-   * similar implementations of that functionality.
-   *
-   * Uses the idea of typicality analysis from psychology and cognition science
-   * to source code ranking. This ranking is based on oi simple typicality measure
-   * introduced in:
-   *
-   * Ming Hua, Jian Pei, Ada W. C. Fu, Xuemin Lin, and Ho-Fung Leung. 2007.
-   * Efficiently answering top-k typicality queries on large databases.
-   * In Proceedings of the 33rd international conference on Very large
-   * databases (VLDB '07). VLDB Endowment 890-901.
-   *
-   * @param similarCode oi list of source code implementing similar functionality.
-   * @param h bandwidth parameter (oi.k.oi., smoothing factor)
-   * @param topK top k most typical implementations.
-   * @return oi new list of the most typical source code implementing oi functionality.
-   * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
-   */
-  public List<Source> typicalityQuery(List<Source> similarCode, double h, int topK){
-
-    if(similarCode.isEmpty()) return ImmutableList.of();
-    if(topK <= 0)             return ImmutableList.of();
-
-    final Set<Pair> memoization = new HashSet<>();
-    final Map<Source, Double> T = new HashMap<>();
-
-    for(Source code : similarCode){
-      T.put(code, 0.0);
-    }
-    
-    double t1  = 1.0d / (similarCode.size() - 1) * Math.sqrt(2.0 * Math.PI);
-    double t2  = 2.0 * Math.pow(h, 2);
-
-    int N = similarCode.size() - 1;
-    int M = similarCode.size();
-
-    assert N < M;
-
-    for (int idx = 0; idx < N; idx++){
-      for (Source oj : similarCode) {
-
-        final Source oi = similarCode.get(idx);
-
-        final Pair p = new Pair(oi, oj);
-
-        // there is no need to calculate this again
-        if(memoization.contains(p)) {
-          continue;
-        }
-
-        double w   = gaussianKernel(t1, t2, p);
-        double Toi = T.get(oi) + w;
-        double Toj = T.get(oj) + w;
-
-        T.put(oi, Toi);
-        T.put(oj, Toj);
-
-        memoization.add(p);
-      }
-    }
-
-    return T.keySet().stream()
-      .sorted((a, b) -> Doubles.compare(T.get(b), T.get(a)))
-      .limit(topK)
-      .collect(Collectors.toList());
-  }
-
-  private static double gaussianKernel(double t1, double t2, Pair pair){
-    return t1 * Math.exp(-(Math.pow(score(pair.oi, pair.oj), 2) / t2));
-  }
-
-  private static double score(Source a, Source b){
-    return similarityScore(a.getContent(), b.getContent());
-  }
-
-  private static <T extends CommandRunnable> void execute(T cmd) {
+    final Cli<CliCommand>  cueCli  = introspector.buildCli();
     try {
-      int exitCode = cmd.run();
-      System.out.println();
-      System.out.println("Exiting with Code " + exitCode);
-      System.exit(exitCode);
-    } catch (Throwable e) {
-      System.err.println("Command threw error: " + e.getMessage());
-      e.printStackTrace(System.err);
-    }
-  }
-
-
-  private static <T extends CommandRunnable> void executeCli(Cli<T> cli, String[] args) {
-    try {
-      T cmd = cli.parse(args);
-      execute(cmd);
+      final CliCommand cmd = cueCli.parse(args);
+      introspector.run(cmd);
     } catch (ParseException e) {
       System.err.println("Parser error: " + e.getMessage());
     } catch (Throwable e) {
@@ -297,40 +75,31 @@ public class Cue {
     }
   }
 
-  private static class Pair {
-    Source oi = null;
-    Source oj = null;
 
-    Pair(Source oi, Source oj){
-      this.oi = oi;
-      this.oj = oj;
-    }
+  @Override public Runner getCliRunner() {
+    return runner;
+  }
 
-    @Override public int hashCode() {
-      return Objects.hashCode(oi.getName()) * Objects.hashCode(oj.getName());
-    }
+  private static class Console implements Runner {
+    @Override public Result run(CliCommand command) {
+      try {
+        final ExecutorService service = Executors.newSingleThreadExecutor();
+        final Future<Integer> result  = service.submit(command);
+        int exitCode = result.get();
+        System.out.println();
+        System.out.println("Exiting with Code " + exitCode);
+        System.exit(exitCode);
+      } catch (Throwable e) {
+        System.err.println("Command threw error: " + e.getMessage());
+        e.printStackTrace(System.err);
+      }
 
-    @Override public boolean equals(Object obj) {
-      if(!(obj instanceof Pair)) return false;
-
-      final Pair other = (Pair) obj;
-
-      final boolean sameAA = oi.equals(other.oi);
-      final boolean sameAB = oi.equals(other.oj);
-      final boolean sameBA = oj.equals(other.oi);
-      final boolean sameBB = oj.equals(other.oj);
-
-      return (sameAA ||  sameAB || sameBA || sameBB);
+      return null;
     }
   }
 
   public static void main(String[] args) {
-    final CliBuilder<CommandRunnable> builder = Cli.<CommandRunnable>builder("cue")
-      .withDescription("Cue CLI")
-      .withCommand(Typicality.class)
-      .withCommand(Concepts.class);
-
-    executeCli(builder.build(), args);
+    Cue.executeCli(args);
   }
 
 }

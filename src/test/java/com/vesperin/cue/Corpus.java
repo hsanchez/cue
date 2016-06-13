@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * @author Huascar Sanchez
  */
-public class Code {
+public class Corpus {
   private static final String ONE = Joiner.on("\n").join(
     ImmutableList.of(
     "public class Fibonacci {"
@@ -159,7 +159,7 @@ public class Code {
     return Source.from("Fibonacci", SIX);
   }
 
-  static List<Source> corpus(){
+  static List<Source> getSourceFiles(){
     return Lists.newArrayList(one(), two(), three(), four(), five(), six());
   }
 

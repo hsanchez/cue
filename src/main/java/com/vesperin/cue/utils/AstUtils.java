@@ -1,8 +1,9 @@
-package com.vesperin.cue.bsg;
+package com.vesperin.cue.utils;
 
 import com.google.common.collect.ImmutableList;
-import com.vesperin.cue.bsg.visitors.LabelVisitor;
-import com.vesperin.cue.bsg.visitors.LinkedNodesVisitor;
+import com.vesperin.base.utils.Jdt;
+import com.vesperin.cue.segment.LabelVisitor;
+import com.vesperin.cue.segment.LinkedNodesVisitor;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -159,10 +160,22 @@ public class AstUtils {
    * @param node node to downcast.
    * @return a method declaration
    */
-  public static MethodDeclaration methodDeclaration(ASTNode node){
+  private static MethodDeclaration methodDeclaration(ASTNode node){
     assert node.getNodeType() == ASTNode.METHOD_DECLARATION;
 
     return ((MethodDeclaration) node);
+  }
+
+  /**
+   * Returns the name of a method declaration.
+   *
+   * @param node the method declaration node.
+   * @return method's name
+   */
+  public static String methodName(ASTNode node){
+    assert node.getNodeType() == ASTNode.METHOD_DECLARATION;
+
+    return Jdt.getSimpleNameIdentifier(methodDeclaration(node).getName());
   }
 
 

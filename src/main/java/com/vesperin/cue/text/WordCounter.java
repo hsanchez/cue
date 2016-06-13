@@ -5,10 +5,11 @@ import com.google.common.collect.Ordering;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -24,7 +25,7 @@ public class WordCounter {
 
   private final Set<StopWords> stopWords;
   private final Map<String, Counter> items;
-  private int totalItemCount;
+  private final AtomicInteger totalItemCount;
 
   /**
    * Counts words in some text.
@@ -40,10 +41,10 @@ public class WordCounter {
     this(items, EnumSet.of(StopWords.ENGLISH, StopWords.JAVA));
   }
 
-  public WordCounter(Iterable<String> items, Set<StopWords> stopWords){
+  private WordCounter(Iterable<String> items, Set<StopWords> stopWords){
     this.stopWords      = stopWords;
-    this.items          = new HashMap<>();
-    this.totalItemCount = 0;
+    this.items          = new ConcurrentHashMap<>();
+    this.totalItemCount = new AtomicInteger(0);
 
     addAll(items);
   }
@@ -84,7 +85,7 @@ public class WordCounter {
       }
     }
 
-    totalItemCount += count;
+    totalItemCount.addAndGet(count);
   }
 
 
@@ -113,7 +114,7 @@ public class WordCounter {
    * @return the total number unique items contained in this WordCounter.
    */
   public int itemsCount() {
-    return totalItemCount;
+    return totalItemCount.get();
   }
 
   /**
