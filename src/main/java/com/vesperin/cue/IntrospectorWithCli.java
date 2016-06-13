@@ -74,6 +74,8 @@ public interface IntrospectorWithCli extends Introspector {
    * @return Runner's result.
    */
   default Result run(CliCommand command, Runner withRunner){
+    Objects.requireNonNull(withRunner);
+    Objects.requireNonNull(command);
     return withRunner.run(command);
   }
 

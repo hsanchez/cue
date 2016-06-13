@@ -136,12 +136,8 @@ class BlockSegmentationGraph extends
   }
 
   private static List<Segment> generateBlackList(SegmentationGraph graph, int capacity) {
-    final List<Segment> allSegments = Lists.newLinkedList(
-      graph.vertexSet().stream()
-        .filter(v -> !(Objects.equals(v, graph.getRootVertex())))
-        .map(v -> v)
-        .collect(Collectors.toList())
-    );
+    final List<Segment> allSegments = graph.vertexSet().stream()
+      .collect(Collectors.toList());
 
     final int N = allSegments.size();
 
@@ -156,8 +152,8 @@ class BlockSegmentationGraph extends
 
     // add vertices values
     for( int n = 1; n <= N; n++){
-      profit[n] = graph.segmentAt(n).benefit();
-      weight[n] = graph.segmentAt(n).weight();
+      profit[n] = graph.segmentAt(n - 1).benefit();
+      weight[n] = graph.segmentAt(n - 1).weight();
     }
 
     double[][]  opt = new double [N + 1][W + 1];
@@ -192,7 +188,7 @@ class BlockSegmentationGraph extends
     final Set<Segment> keep = Sets.newLinkedHashSet();
     for (int n = 1; n <= N; n++) {
       if (take[n]) {
-        keep.add(graph.segmentAt(n));
+        keep.add(graph.segmentAt(n - 1));
       }
     }
 
@@ -201,13 +197,10 @@ class BlockSegmentationGraph extends
     return allSegments;
   }
 
-  private static boolean isPrecedenceConstraintMaintained(
-    double[][] opt, int i, int j,
-    SegmentationGraph graph) {
-
+  private static boolean isPrecedenceConstraintMaintained(double[][] opt, int i, int j, SegmentationGraph graph) {
 
     final Segment parent = graph.segmentAt(i - 1);
-    final Segment child = (graph.size() == i
+    final Segment child = (i >= graph.vertexSet().size()
       ? null
       : graph.segmentAt(i)
     );
@@ -215,7 +208,7 @@ class BlockSegmentationGraph extends
     // a graph made of a single node implies the following:
     // - the single node is the root
     // - no precedence constraints can be enforced since it has not parent and no children
-    final boolean singleNode    = graph.size() == 1;
+    final boolean singleNode    = graph.vertexSet().size() == 1;
     final boolean pass          = singleNode && graph.isRootVertex(parent) && child == null;
 
     return  (pass) || (opt[i][j] != opt[i - 1][j] && graph.containsEdge(parent, child));
