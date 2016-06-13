@@ -313,8 +313,7 @@ public class SourceSelection implements Iterable<Location> {
   }
 
   /**
-   *
-   * @return
+   * @return the subtracted code based on tracked location.
    */
   public String toCode(){
     final Location selection = toLocation();
