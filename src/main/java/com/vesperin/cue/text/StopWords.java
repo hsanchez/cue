@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -44,15 +45,27 @@ public enum StopWords {
   }
 
   /**
+   * Adds a new word to the stop-words list.
+   *
+   * @param word new word to add
+   */
+  public void add(String word){
+    final String nonNullWord = Objects.requireNonNull(word);
+    stopWords.add(nonNullWord.toLowerCase(Locale.ENGLISH));
+  }
+
+  /**
    * Test if a string is a member of any of the given sets of stop words.
    *
    * @param corpus the corpus of stop words.
    * @param word the string to be tested.
    * @return true if the string is a stop word; false otherwise.
    */
-  public static boolean isStopWord(Set<StopWords> corpus, String word){
-    for(StopWords each : corpus){
-      if(each.isStopWord(word)) return true;
+  public static boolean isStopWord(Set<StopWords> corpus, String... word){
+    for(String w : word){
+      for(StopWords s : corpus){
+        if(s.isStopWord(w)) return true;
+      }
     }
 
     return false;
@@ -106,7 +119,7 @@ public enum StopWords {
           }
 
           for (final String w : line.split("\\s+")) {
-            stopWords.add(w.toLowerCase(Locale.ENGLISH));
+            add(w);
           }
         }
 

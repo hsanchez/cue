@@ -7,6 +7,9 @@ import com.vesperin.base.Source;
 import com.vesperin.cue.Cue;
 import com.vesperin.cue.Introspector;
 import com.vesperin.cue.IntrospectorWithCli;
+import com.vesperin.cue.spi.Cluster;
+import com.vesperin.cue.text.StopWords;
+import com.vesperin.cue.text.Word;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -70,12 +73,58 @@ public class ConceptAssignmentCommand implements IntrospectorWithCli.CliCommand 
 
       } else if (target != null){
         final Path start = Paths.get(target);
-        corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test")));
-        if(topK == 10) {
+        corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test", "package-info")));
+
+        System.out.println("[INFO] Number of files in corpus? " + corpus.size());
+
+        if(topK <= 0) {
           System.out.println(cue.assignedConcepts(corpus));
         } else {
+          StopWords.JAVA.add(Paths.get(target).getFileName().toString());
+
           // the entire body declaration (e.g., all methods) is relevant
-          System.out.println(cue.assignedConcepts(topK, corpus));
+//          final Set<Source> atLeast8  = new HashSet<>();
+//          final Set<Source> atLeast5  = new HashSet<>();
+//          final Set<Source> rest      = new HashSet<>();
+//          final Set<String> terms     = cue.assignedConcepts(topK, corpus).stream().collect(Collectors.toSet());
+//
+//          for(Source each : corpus){
+//            final Context context = Sources.from(each);
+//            final WordVisitor iterator = new WordVisitor();
+//            context.accept(iterator);
+//
+//            final WordCounter counter = new WordCounter(iterator.getItems());
+//            final Set<String> most    = counter.mostFrequent(topK).stream().collect(Collectors.toSet());
+//
+//            final int hit = Sets.intersection(terms, most).size();
+//            if(hit >= 8){
+//              atLeast8.add(each);
+//            } else if (hit >= 5 && hit < 8){
+//              atLeast5.add(each);
+//            } else {
+//              rest.add(each);
+//            }
+//          }
+//
+//
+//          System.out.println(atLeast8.stream().map(Source::getName).collect(Collectors.toList()));
+//          System.out.println(atLeast5.stream().map(Source::getName).collect(Collectors.toList()));
+//          System.out.println(rest.stream().map(Source::getName).collect(Collectors.toList()));
+//
+
+          final List<Word> words = cue.assignedConcepts(topK, corpus);
+          System.out.println(words);
+
+          final List<Cluster> recommend = cue.clusters(words, corpus);
+
+          System.out.println("========================");
+          System.out.println("Clusters of semantically similar words:");
+          for(Cluster each : recommend){
+            System.out.println(each.getWords());
+          }
+
+          System.out.println("========================");
+
         }
       } else {
         System.err.println("Unable to parse your input!");

@@ -24,9 +24,9 @@ public class Counter implements Comparable<Counter> {
    * @param max max value
    */
   public Counter(String id, int max) {
-    name = id;
-    maxCount = max;
-    count = 0;
+    name      = id;
+    maxCount  = max;
+    count     = 0;
   }
 
   // compare two Counter objects based on their count
@@ -37,16 +37,16 @@ public class Counter implements Comparable<Counter> {
   }
 
   /**
-   * Increment the counter by 1
+   * Counts one step
    */
-  public void increment() {
-    increment(1);
+  public void count() {
+    count(1);
   }
 
   /**
-   * Increment the counter by 1
+   * Counts the step
    */
-  public void increment(int step) {
+  public void count(int step) {
     if ((count + step) < maxCount) count = count + step;
     assert count >= 1;
   }
@@ -62,6 +62,4 @@ public class Counter implements Comparable<Counter> {
   @Override public String toString() {
     return name + ": " + count;
   }
-
-
 }

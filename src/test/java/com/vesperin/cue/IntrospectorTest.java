@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Floats;
 import com.vesperin.base.Source;
+import com.vesperin.cue.text.Word;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Similarity;
 import com.vesperin.cue.utils.Sources;
@@ -64,15 +65,15 @@ public class IntrospectorTest {
       "file", "create", "text", "process", "code", "configuration"
     );
 
-    final List<String> concepts = Cue.newIntrospector().assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
+    final List<Word> concepts = Cue.newIntrospector().assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
 
     assertEquals(concepts.size(), expected.size());
 
-    for(String each : concepts){
-      assertThat(expected.contains(each), is(true));
+    for(Word each : concepts){
+      assertThat(expected.contains(each.getWord()), is(true));
     }
 
-    final List<String> concepts2 = Cue.newIntrospector().assignedConcepts(Lists.newArrayList(SRC)).stream()
+    final List<Word> concepts2 = Cue.newIntrospector().assignedConcepts(Lists.newArrayList(SRC)).stream()
       .sorted().collect(Collectors.toList());
 
     assertEquals(concepts, concepts2);
@@ -86,6 +87,7 @@ public class IntrospectorTest {
     );
 
     final Set<String> concepts = Cue.newIntrospector().assignedConcepts(SRC, names).stream()
+      .map(Word::getWord)
       .collect(Collectors.toSet());
     assertThat(!concepts.isEmpty(), is(true));
 
@@ -93,6 +95,7 @@ public class IntrospectorTest {
 
     final Introspector introspector = Cue.newIntrospector();
     final Set<String> c = introspector.assignedConcepts(SRC, names).stream()
+      .map(Word::getWord)
       .collect(Collectors.toSet());
 
     assertEquals(expected, c);
@@ -182,8 +185,8 @@ public class IntrospectorTest {
     final List<Source> files = collectJavaFilesInResources().stream()
       .map(Sources::from).collect(Collectors.toList());
 
-    final List<String> concepts = Cue.newIntrospector().assignedConcepts(files);
-    final List<String> c = Cue.newIntrospector().assignedConcepts(files);
+    final List<Word> concepts = Cue.newIntrospector().assignedConcepts(files);
+    final List<Word> c = Cue.newIntrospector().assignedConcepts(files);
 
     assertThat(concepts.isEmpty(), is(false));
     assertThat(c.isEmpty(), is(false));

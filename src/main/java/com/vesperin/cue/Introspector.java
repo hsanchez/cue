@@ -1,9 +1,12 @@
 package com.vesperin.cue;
 
+import Jama.Matrix;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.vesperin.base.Context;
 import com.vesperin.base.Source;
@@ -11,34 +14,38 @@ import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.ProgramUnitLocation;
 import com.vesperin.base.locators.UnitLocation;
-import com.vesperin.cue.segment.BlockSegmentationVisitor;
-import com.vesperin.cue.segment.SegmentationGraph;
+import com.vesperin.cue.segment.Segments;
+import com.vesperin.cue.spi.Cluster;
+import com.vesperin.cue.spi.Kmeans;
 import com.vesperin.cue.spi.SourceSelection;
-import com.vesperin.cue.text.TokenIterator;
+import com.vesperin.cue.spi.Words;
+import com.vesperin.cue.text.Word;
 import com.vesperin.cue.text.WordCounter;
+import com.vesperin.cue.text.WordVisitor;
+import com.vesperin.cue.utils.AstUtils;
+import com.vesperin.cue.utils.Jamas;
 import com.vesperin.cue.utils.Similarity;
 import com.vesperin.cue.utils.Sources;
+import com.vesperin.cue.utils.Threads;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.io.PrintWriter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.vesperin.cue.utils.AstUtils.methodName;
 import static com.vesperin.cue.utils.Similarity.similarityScore;
+import static java.util.stream.Collectors.toList;
 
 /**
  * @author Huascar Sanchez
  */
 public interface Introspector {
+
+  AtomicInteger COUNTER = new AtomicInteger(0);
 
   /**
    * Determine the concepts (capped to 10 suggestions) that appear in a list of
@@ -47,8 +54,8 @@ public interface Introspector {
    * @param sources list of sources to inspect.
    * @return a new list of guessed concepts.
    */
-  default List<String> assignedConcepts(List<Source> sources){
-    return assignedConcepts(10, sources);
+  default List<Word> assignedConcepts(List<Source> sources){
+    return assignedConcepts(Integer.MAX_VALUE, sources);
   }
 
   /**
@@ -59,10 +66,9 @@ public interface Introspector {
    * @param sources list of sources to inspect.
    * @return a new list of guessed concepts.
    */
-  default List<String> assignedConcepts(int topK, List<Source> sources){
+  default List<Word> assignedConcepts(int topK, List<Source> sources){
     return assignedConcepts(topK, sources, ImmutableSet.of());
   }
-
 
   /**
    * Determine the concepts that appear in oi list of
@@ -73,49 +79,167 @@ public interface Introspector {
    * @param relevantSet set of relevant method names
    * @return oi new list of guessed concepts.
    */
-  default List<String> assignedConcepts(int topK, List<Source> sources, Set<String> relevantSet){
+  default List<Word> assignedConcepts(int topK, List<Source> sources, final Set<String> relevantSet){
 
-    final ExecutorService service = newExecutorService(sources.size());
+    final ExecutorService service = Threads.newExecutorService(sources.size()/topK);
     final WordCounter     counter = new WordCounter();
 
-    for(Source each : sources){
-      service.execute(() -> counter.addAll(assignedConcepts(each, relevantSet)));
+    final Map<Source, List<Word>> documentToWordList = new ConcurrentHashMap<>();
+    final Set<Word> wordSet = ConcurrentHashMap.newKeySet();
+
+    // 1. build document to word-list map
+    for(final Source each : sources){
+      if(each.getName().equals("package-info")){
+        continue;
+      }
+
+      service.execute(
+        () -> {
+          final List<Word> wordList = assignedConcepts(each, relevantSet);
+          documentToWordList.put(each, wordList);
+          wordSet.addAll(wordList);
+          counter.addAll(wordList);
+        }
+      );
     }
 
     // shuts down the executor service
-    shutdownExecutorService(service);
+    Threads.shutdownExecutorService(service);
 
-    return counter.mostFrequent(topK);
+    final Map<Integer,Word> wordIdValueMap = new HashMap<>();
 
-  }
-
-  static ExecutorService newExecutorService(int scale){
-    final int cpus       = Runtime.getRuntime().availableProcessors();
-    scale                = scale > 10 ? 10 : scale;
-    final int maxThreads = ((cpus * scale) > 0 ? (cpus * scale) : 1);
-
-    return Executors.newFixedThreadPool(maxThreads);
-  }
-
-  static void shutdownExecutorService(ExecutorService service){
-    // wait for all of the executor threads to finish
-    service.shutdown();
-
-    try {
-      if (!service.awaitTermination(60, TimeUnit.SECONDS)) {
-        // pool didn't terminate after the first try
-        service.shutdownNow();
-      }
-
-
-      if (!service.awaitTermination(60, TimeUnit.SECONDS)) {
-        // pool didn't terminate after the second try
-        System.out.println("ERROR: executor service did not terminate after a second try.");
-      }
-    } catch (InterruptedException ex) {
-      service.shutdownNow();
-      Thread.currentThread().interrupt();
+    // 2. create a Map of ids to words from the wordSet
+    int wordId = 0;
+    for (Word word : wordSet) {
+      wordIdValueMap.put(wordId, word);
+      wordId++;
     }
+
+    // we need a documents.keySet().size() x wordSet.size() matrix to hold
+    // this info
+    final int         numDocs   = sources.size();
+    final int         numWords  = wordSet.size();
+    final double[][]  data      = new double[numWords][numDocs];
+
+    for (int i = 0; i < numWords; i++) {
+      for (int j = 0; j < numDocs; j++) {
+
+        final List<Word> ws = documentToWordList.get(sources.get(j));
+        if(ws == null) continue;
+
+        final Word word = wordIdValueMap.get(i);
+
+        int count = 0; for(Word each : ws){
+          if(Objects.equals(each, word)) count++;
+        }
+
+        data[i][j] = count;
+      }
+    }
+
+    final List<String> documents = sources.stream().map(Source::getName).collect(toList());
+    final List<Word>   wordList  = wordSet.stream().collect(toList());
+
+//
+//    System.out.println("\n\n\n");
+//    System.out.println("BEGIN: WORDS");
+//    wordList.forEach(e -> System.out.print(e.getWord() + " "));
+//    System.out.println("END: WORDS");
+
+    System.out.println("\n\n\n");
+
+    final Matrix raw    = new Matrix(data);
+    Jamas.printMatrix("RAW", raw, documents, wordList, new PrintWriter(System.out));
+
+    // Turns tf-idf statistic into a score (to be used as word ranking)
+    final Matrix tfidf = Jamas.tfidfMatrix(raw);
+
+    System.out.println(String.format("[INFO] matrix %d x %d", tfidf.getRowDimension(), tfidf.getColumnDimension()));
+    System.out.println("[INFO] # methods inspected? " + COUNTER.get());
+
+    return topKWord(topK, tfidf, wordList);
+  }
+
+
+  default List<Word> topKWord(int k, Matrix matrix, List<Word> wordList){
+
+    final Map<Word, Double> scores = new HashMap<>();
+    for (int i = 0; i < matrix.getRowDimension(); i++) {
+      final double s = Jamas.rowSum(matrix, i);
+      scores.put(wordList.get(i), s);
+    }
+
+    return scores.entrySet().stream()
+      .sorted((a, b) -> Doubles.compare(b.getValue(), a.getValue()))
+      .limit(k).map(Map.Entry::getKey).collect(toList());
+  }
+
+
+  default List<Cluster> clusters(List<Word> topWords, List<Source> sources){
+
+
+    System.out.println("\n\n\n");
+    System.out.println("BEGIN: WORDS");
+    topWords.forEach(e -> System.out.print(e.getWord() + " "));
+    System.out.println("END: WORDS");
+
+    final Map<Source, List<Word>> documentToWordList = new ConcurrentHashMap<>();
+    final List<Source> corpus = Lists.newArrayList();
+
+    for( Source src : sources){
+      for(Word w : topWords){
+        final String lowerCaseContent = src.getContent().toLowerCase(Locale.ENGLISH);
+        if(lowerCaseContent.contains(w.getWord())){
+          if(documentToWordList.containsKey(src)){
+            documentToWordList.get(src).add(w);
+            corpus.add(src);
+          } else {
+            documentToWordList.put(src, Lists.newArrayList(w));
+            corpus.add(src);
+          }
+        }
+      }
+    }
+
+    final Map<Integer,Word> wordIdValueMap = new HashMap<>();
+
+    // 2. create a Map of ids to words from the wordSet
+    int wordId = 0;
+    for (Word word : topWords) {
+      wordIdValueMap.put(wordId, word);
+      wordId++;
+    }
+
+    final int         numDocs   = documentToWordList.keySet().size();
+    final int         numWords  = topWords.size();
+    final double[][]  data      = new double[numWords][numDocs];
+
+    for (int i = 0; i < numWords; i++) {
+      for (int j = 0; j < numDocs; j++) {
+
+        final List<Word> ws = documentToWordList.get(corpus.get(j));
+        final Word word = wordIdValueMap.get(i);
+
+        int count = 0; for(Word each : ws){
+          if(Objects.equals(each, word)) count++;
+        }
+
+        data[i][j] = count;
+      }
+    }
+
+    final List<String> documents = documentToWordList.keySet().stream()
+      .map(Source::getName).collect(toList());
+
+    final Matrix rawMatrix = new Matrix(data);
+    Jamas.printRawFreqMatrix(rawMatrix, documents, topWords);
+
+    final Matrix lsiMatrix = Jamas.runLSI(rawMatrix);
+    Jamas.printMatrix("LSI matrix", lsiMatrix, documents, topWords, new PrintWriter(System.out));
+
+    final Words words = new Words(lsiMatrix, topWords);
+
+    return Kmeans.cluster(words);
   }
 
 
@@ -125,7 +249,7 @@ public interface Introspector {
    * @param code source code to introspect.
    * @return a new list of guessed concepts.
    */
-  default List<String> assignedConcepts(Source code){
+  default List<Word> assignedConcepts(Source code){
     return assignedConcepts(code, ImmutableSet.of());
   }
 
@@ -137,7 +261,7 @@ public interface Introspector {
    * @param relevant set of relevant method names. At least one match should exist.
    * @return a new list of guessed concepts.
    */
-  default List<String> assignedConcepts(Source code, final Set<String> relevant){
+  default List<Word> assignedConcepts(Source code, final Set<String> relevant){
     final Context   context = Sources.from(code);
 
     final UnitLocation unit = relevant.isEmpty()
@@ -145,6 +269,8 @@ public interface Introspector {
       : locatedMethod(context, relevant);
 
     if(unit == null) return ImmutableList.of();
+
+    COUNTER.addAndGet(AstUtils.methodCount(unit.getUnitNode()));
 
     return assignedConcepts(unit, 10);
   }
@@ -156,39 +282,14 @@ public interface Introspector {
    * @param topK k most frequent concepts in the list of sources.
    * @return a new list of guessed concepts.
    */
-  default List<String> assignedConcepts(Location locatedUnit, int topK){
+  default List<Word> assignedConcepts(Location locatedUnit, int topK){
     final UnitLocation  unitLocation  = (UnitLocation) Objects.requireNonNull(locatedUnit);
-    final Set<Location> irrelevantSet = generateIrrelevantSet(unitLocation);
+    final Stopwatch watch = Stopwatch.createStarted();
+    final Set<Location> irrelevantSet = unitLocation.getUnitNode() instanceof CompilationUnit ?
+      new HashSet<>() : Segments.irrelevantLocations(unitLocation);
+    System.out.println(String.format("Find irrelevant locations (%d): ", irrelevantSet.size()) + watch);
 
     return interestingConcepts(topK, unitLocation, irrelevantSet);
-  }
-
-
-  /**
-   * Generates the set of irrelevant locations this introspector is not
-   * interested in exploring.
-   *
-   * @param unitLocation the located unit of interest.
-   * @return a new set of irrelevant locations.
-   */
-  static Set<Location> generateIrrelevantSet(UnitLocation unitLocation){
-    Objects.requireNonNull(unitLocation);
-    final SegmentationGraph bsg = generateSegmentationGraph(unitLocation);
-    return bsg.irrelevantSet(unitLocation);
-  }
-
-  /**
-   * Generates a new segmentation graph based on a located program unit..
-   *
-   * @param unitLocation located unit.
-   * @return a new {@link SegmentationGraph segmentation} graph.
-   */
-  static SegmentationGraph generateSegmentationGraph(UnitLocation unitLocation){
-    final BlockSegmentationVisitor visitor = new BlockSegmentationVisitor(unitLocation);
-
-    unitLocation.getUnitNode().accept(visitor);
-
-    return visitor.getBlockSegmentationGraph();
   }
 
   /**
@@ -199,13 +300,27 @@ public interface Introspector {
    * @param irrelevantSet set of irrelevant names
    * @return a new list of interesting concepts.
    */
-  default List<String> interestingConcepts(int topK, UnitLocation located,
+  default List<Word> interestingConcepts(int topK, UnitLocation located,
           Set<Location> irrelevantSet){
     // collect frequent words outside the blacklist of locations
-    final TokenIterator extractor   = new TokenIterator(irrelevantSet);
+    Stopwatch stopwatch = Stopwatch.createStarted();
+
+    System.out.println("#interestingConcepts: Warming up " + located.getSource().getName());
+
+    if(located.getSource().getName().equals("DynamicsWorld")){
+      System.out.println(located);
+    }
+
+    final WordVisitor extractor   = new WordVisitor(irrelevantSet);
     located.getUnitNode().accept(extractor);
 
-    final WordCounter wordCounter = new WordCounter(extractor.getItems());
+    System.out.println("#interestingConcepts: Started counting " + located.getSource().getName() + ": " + stopwatch);
+
+    final List<Word> words = extractor.getItems();
+    System.out.println(String.format("Finished counting with %s : #%s words", located.getSource().getName(), words.size()));
+    final WordCounter wordCounter = new WordCounter(words);
+
+    System.out.println("#interestingConcepts: Count words " + stopwatch);
 
     return wordCounter.mostFrequent(topK);
   }
@@ -245,7 +360,7 @@ public interface Introspector {
     return region.entrySet().stream()
       .sorted(byValue.reversed())
       .map(Map.Entry::getKey)
-      .collect(Collectors.toList());
+      .collect(toList());
   }
 
   /**
@@ -318,7 +433,7 @@ public interface Introspector {
    * similar implementations of that functionality. It uses 0.3 as a default
    * bandwidth parameter.
    *
-   * See {@link #typicalityQuery(int, Set, Processor)} for additional details.
+   * See {@link #typicalityQuery(Set, TypicalityProcessor)} for additional details.
    *
    * @param topK top k most typical implementations.
    * @param resultSet a set of source objects implementing a similar functionality.
@@ -334,14 +449,15 @@ public interface Introspector {
    * similar implementations of that functionality. It uses 0.3 as a default
    * bandwidth parameter.
    *
-   * @param topK top k most typical implementations.
+   * @param topK k most typical/representative source objects, where k cannot
+   *             be greater than the size of the sources set.
    * @param h smoothing factor
    * @param resultSet a set of source objects implementing a similar functionality.
    * @param relevant relevant methods names to introspect
    * @return a new list of k most typical source objects implementing a similar functionality.
    */
   default List<Source> typicalityQuery(int topK, double h, Set<Source> resultSet, Set<String> relevant){
-    return typicalityQuery(topK, resultSet, new SegmentsTypicalityProcessor(h, relevant));
+    return typicalityQuery(resultSet, new SimpleTypicalityProcessor(topK, h, relevant));
   }
 
 
@@ -359,14 +475,12 @@ public interface Introspector {
    * databases (VLDB '07). VLDB Endowment 890-901.
    *
    * @param resultSet a set of source code implementing similar functionality.
-   * @param topK top k most typical implementations.
    * @param queryProcessor typicality query's processor.
    * @return a new list of the most typical source code implementing a functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
-  default <T> List<Source> typicalityQuery(int topK, Set<Source> resultSet,
-              Processor <T> queryProcessor){
-    return queryProcessor.process(topK, resultSet);
+  default List<Source> typicalityQuery(Set<Source> resultSet, TypicalityProcessor queryProcessor){
+    return queryProcessor.process(resultSet);
   }
 
   static UnitLocation locatedMethod(Context context, final Set<String> relevant){
@@ -377,10 +491,15 @@ public interface Introspector {
   }
 
   static UnitLocation locatedCompilationUnit(Context context){
-    return new ProgramUnitLocation(
-      context.getCompilationUnit(),
-      Locations.locate(context.getCompilationUnit())
-    );
+    try {
+      return new ProgramUnitLocation(
+        context.getCompilationUnit(),
+        Locations.locate(context.getCompilationUnit())
+      );
+    } catch (Exception e){
+      System.out.println("Ignoring a package.java class");
+      return null;
+    }
   }
 
   static UnitLocation locateUnit(Source code, Set<String> relevant){
@@ -419,11 +538,8 @@ public interface Introspector {
     if(Objects.isNull(unit)) // returns nothing
       return "";
 
-    final SegmentationGraph graph     = generateSegmentationGraph(unit);
-    final List<Location>    whiteList = graph.relevantSet(unit).stream()
-      .collect(Collectors.toList());
-
-    final SourceSelection selection = new SourceSelection(whiteList);
+    final Set<Location> whiteSet = Segments.relevantLocations(unit);
+    final SourceSelection selection = new SourceSelection(whiteSet);
 
     return selection.toCode();
   }
@@ -434,11 +550,14 @@ public interface Introspector {
     );
   }
 
+
   /**
-   * A type of processor for typicality queries.
+   * Introspection processor.
+   *
    * @param <T> feature type
+   * @param <R> return type
    */
-  interface Processor <T> {
+  interface Processor <T, R> {
 
     /**
      * Generates a feature for a source and its relevant method.
@@ -465,14 +584,37 @@ public interface Introspector {
      * implementation of some functionality in a set of implementations with similar
      * functionality.
      *
-     * @param topK k most typical/representative source objects, where k cannot
-     *             be greater than the size of the sources set.
      * @param sources a set of source objects implementing a similar functionality.
-     * @return a list of relevant source objects, ranked by some given score. Different
-     *    scores will be implemented by the implementors of this type.
-     * @throws IllegalArgumentException if topK > Size(sources)
+     * @return a type R.
      */
-    List<Source> process(int topK, Set<Source> sources);
+    R process(Set<Source> sources);
+  }
+
+
+  interface TypicalityProcessor extends Processor <Snapshot, List<Source>> {
+    /**
+     * @return k most typical value.
+     */
+    int topK();
+
+    /**
+     * Generates a ranked (by typicality) list of source files.
+     *
+     * @param scoreboard existing typicality scores.
+     * @return a new ranked list
+     */
+    default List<Source> rankedList(Map<Snapshot, Double> scoreboard) {
+      final Map<Snapshot, Double> T = Objects.requireNonNull(scoreboard);
+
+      final List<Snapshot> result = T.keySet().stream()
+        .sorted((a, b) -> Double.compare(T.get(b), T.get(a)))
+        .limit(topK())
+        .collect(toList());
+
+      return result.stream()
+        .map(Snapshot::source)
+        .collect(toList());
+    }
   }
 
 
@@ -484,30 +626,27 @@ public interface Introspector {
    */
   interface Feature <T> {
     /**
-     * @return original source of data.
-     */
-    Source source();
-
-    /**
      * @return feature's data.
      */
     T data();
   }
 
   /**
-   * Default feature based on source code's content.
+   * A summary of the Source file as a feature.
    */
-  class CodeFeature implements Feature <String> {
-    private final Source source;
-    private final String data;
+  class Snapshot implements Feature <String> {
+    final Source code;
+    final String data;
 
-    CodeFeature(Source source, String data){
-      this.source = source;
+    Snapshot(Source code, String data){
+      this.code   = code;
       this.data   = data;
     }
-
-    @Override public Source source() {
-      return source;
+    /**
+     * @return original source of data.
+     */
+    public Source source(){
+      return code;
     }
 
     @Override public String data() {
@@ -515,11 +654,41 @@ public interface Introspector {
     }
   }
 
+  /**
+   * Coverage relation between typical source file and non typical source files.
+   */
+  class Coverage implements Feature <Map<Source, List<Source>>> {
+    final Map<Source, List<Source>> region;
+
+    Coverage(){
+      this.region = new HashMap<>();
+    }
+
+    /**
+     * Adds coverage between source files.
+     *
+     * @param thisCode object to be covered by the other object.
+     * @param toThatCode
+     */
+    public void adds(Source thisCode, Source toThatCode){
+      if(!region.containsKey(toThatCode)){
+        region.put(toThatCode, Lists.newArrayList(thisCode));
+      } else {
+        region.get(toThatCode).add(thisCode);
+      }
+    }
+
+    @Override public Map<Source, List<Source>> data() {
+      return data();
+    }
+  }
+
 
   /**
    * Default implementation of typicality analysis.
    */
-  class SegmentsTypicalityProcessor implements Processor <Feature<String>> {
+  class SimpleTypicalityProcessor implements TypicalityProcessor {
+    private final int         topK;
     private final double      h;
     private final Set<String> relevant;
 
@@ -530,48 +699,44 @@ public interface Introspector {
      * @param h smoothing factor
      * @param relevant relevant method names
      */
-    SegmentsTypicalityProcessor(double h, Set<String> relevant){
+    SimpleTypicalityProcessor(int topK, double h, Set<String> relevant){
+      this.topK     = topK;
       this.h        = h;
       this.relevant = relevant;
     }
 
-    @Override public Feature<String> from(Source source) {
-      return new CodeFeature(source, segmentsCode(source, relevant));
+    @Override public Snapshot from(Source source) {
+      return new Snapshot(source, segmentsCode(source, relevant));
     }
 
-
-    @Override public List<Source> process(int topK, Set<Source> sources) {
-
+    @Override public List<Source> process(Set<Source> sources){
       if(sources.isEmpty()) return ImmutableList.of();
-      if(topK <= 0)         return ImmutableList.of();
+      if(topK() <= 0)       return ImmutableList.of();
 
-      final Map<Feature<String>, Double> T = new HashMap<>();
-
-      final Set<Feature<String>> features = from(sources);
+      final Map<Snapshot, Double> T = new HashMap<>();
+      final Set<Snapshot> features  = from(sources);
 
       // Compute the cartesian product of the sources object
-      final Set<List<Feature<String>>> cartesian = Sets.cartesianProduct(
+      final Set<List<Snapshot>> cartesian = Sets.cartesianProduct(
         Arrays.asList(features, features)
       );
 
 
       // Initialize these features' scores
-      for(Feature<String> code : features){
+      for(Snapshot code : features){
         T.put(code, 0.0);
       }
 
-      assert features.size() == sources.size();
+      assert T.keySet().size() == sources.size();
 
-      double t1  = 1.0d / (features.size() - 1) * Math.sqrt(2.0 * Math.PI);
+      double t1  = 1.0d / (T.keySet().size() - 1) * Math.sqrt(2.0 * Math.PI);
       double t2  = 2.0 * Math.pow(h, 2);
 
-      for(List<Feature<String>> each : cartesian){
-        final Feature<String> oi = each.get(0);
-        final Feature<String> oj = each.get(1);
+      for(List<Snapshot> each : cartesian){
+        final Snapshot oi = each.get(0);
+        final Snapshot oj = each.get(1);
 
-        final Pair<String> p = new Pair<>(oi, oj);
-
-        double w = gaussianKernel(t1, t2, p);
+        double w = gaussianKernel(t1, t2, oi, oj);
         double Toi = T.get(oi) + w;
         double Toj = T.get(oj) + w;
 
@@ -579,60 +744,24 @@ public interface Introspector {
         T.put(oj, Toj);
       }
 
-      final List<Feature<String>> result = T.keySet().stream()
-        .sorted((a, b) -> Double.compare(T.get(b), T.get(a)))
-        .limit(topK)
-        .collect(Collectors.toList());
-
-      return result.stream()
-        .map(Feature::source)
-        .collect(Collectors.toList());
+      return rankedList(T);
     }
 
 
-    private static double gaussianKernel(double t1, double t2, Pair<String> pair){
-      return t1 * Math.exp(-(Math.pow(score(pair.oi, pair.oj), 2) / t2));
+    static double gaussianKernel(double t1, double t2, Snapshot oi, Snapshot oj){
+      return t1 * Math.exp(-(Math.pow(score(oi, oj), 2) / t2));
     }
 
-    private static double score(Feature<String> a, Feature<String> b){
+    static double score(Feature<String> a, Feature<String> b){
       return similarityScore(a.data(), b.data());
     }
 
+    @Override public int topK() {
+      return topK;
+    }
+
     @Override public String toString() {
-      return "SegmentsTypicalityProcessor (smoothingFactor = " + h + ")";
-    }
-  }
-
-  /**
-   * Record object that tracks features.
-   *
-   * @param <T> object type
-   */
-  class Pair <T> {
-    Feature<T> oi = null;
-    Feature<T> oj = null;
-
-    Pair(Feature<T> oi, Feature<T> oj){
-      this.oi = oi;
-      this.oj = oj;
-    }
-
-    @Override public int hashCode() {
-      return Objects.hashCode(oi.data()) * Objects.hashCode(oj.data());
-    }
-
-    @Override public boolean equals(Object obj) {
-      if(!(obj instanceof Pair)) return false;
-
-      @SuppressWarnings("unchecked")
-      final Pair<T> other = (Pair<T>) obj; // unchecked warning
-
-      final boolean sameAA = Objects.equals(oi.data(), other.oi.data());
-      final boolean sameAB = Objects.equals(oi.data(), other.oj.data());
-      final boolean sameBA = Objects.equals(oj.data(), other.oi.data());
-      final boolean sameBB = Objects.equals(oj.data(), other.oj.data());
-
-      return (sameAA ||  sameAB || sameBA || sameBB);
+      return "SimpleTypicalityProcessor (smoothingFactor = " + h + ")";
     }
   }
 }

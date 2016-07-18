@@ -1,15 +1,24 @@
 package com.vesperin.cue.text;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Ordering;
+import com.google.common.primitives.Ints;
+import com.vesperin.cue.spi.Inflector;
+//import com.vesperin.cue.spi.In flector;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Spliterator;
+import java.util.concurrent.CountedCompleter;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -17,33 +26,39 @@ import java.util.stream.Collectors;
  */
 public class WordCounter {
 
-  private static final Ordering<Map.Entry<String, Counter>> BY_FREQ_ASC = new Ordering<Map.Entry<String, Counter>>() {
-    public int compare(Map.Entry<String, Counter> left, Map.Entry<String, Counter> right) {
-      return left.getValue().compareTo(right.getValue());
-    }
-  };
+  private static final Ordering<Word> BY_FREQ_ASC =
+    new Ordering<Word>() {
+      public int compare(Word left, Word right) {
+        return Ints.compare(left.getWeight(), right.getWeight());
+      }
+    };
 
-  private final Set<StopWords> stopWords;
-  private final Map<String, Counter> items;
-  private final AtomicInteger totalItemCount;
+  private final Set<StopWords>  stopWords;
+  private final Map<Word, Word> items;
+  private final AtomicInteger   totalItemCount;
 
   /**
    * Counts words in some text.
    */
   public WordCounter(){
-    this(new ArrayList<>());
+    this(null);
   }
 
   /**
    * Counts words in some text.
    */
-  public WordCounter(Iterable<String> items){
+  public WordCounter(List<Word> items){
     this(items, EnumSet.of(StopWords.ENGLISH, StopWords.JAVA));
   }
 
-  private WordCounter(Iterable<String> items, Set<StopWords> stopWords){
+  /**
+   * Counts words in some list, paying attention to a set of stop words..
+   * @param items items to be counted
+   * @param stopWords set of stop words
+   */
+  private WordCounter(List<Word> items, Set<StopWords> stopWords){
     this.stopWords      = stopWords;
-    this.items          = new ConcurrentHashMap<>();
+    this.items          = new HashMap<>();
     this.totalItemCount = new AtomicInteger(0);
 
     addAll(items);
@@ -53,10 +68,26 @@ public class WordCounter {
    * Adds all items in iterable to this counter.
    * @param items iterable made of string items.
    */
-  public void addAll(final Iterable<String> items) {
-    for (final String word : items) {
-      add(word);
+  public void addAll(final List<Word> items) {
+    final Stopwatch timer = Stopwatch.createStarted();
+    if(Objects.isNull(items)) return;
+    if(items.contains(null))  return;
+
+    for( Word each : items){
+      if(Objects.isNull(each)) continue;
+
+      add(each);
     }
+
+    System.out.println("#addAll: add all words " + timer);
+  }
+
+  private static <T> void parEach(List<T> a, Consumer<T> action) {
+    if(Objects.isNull(a)) return;
+    if(Objects.isNull(action)) return;
+    final Spliterator<T> s = a.spliterator();
+    long targetBatchSize = s.estimateSize() / (ForkJoinPool.getCommonPoolParallelism() * 8);
+    new ParEach<>(null, s, action, targetBatchSize).invoke();
   }
 
   /**
@@ -64,8 +95,34 @@ public class WordCounter {
    *
    * @param item string item.
    */
-  public void add(String item) {
-    add(item, 1);
+  public void add(Word item) {
+    if(item == null) return;
+    if(StopWords.isStopWord(stopWords, item.getWord())) return;
+
+    if(item.getWord().equals("id")){
+      System.out.println();
+    }
+
+    if(items.containsKey(item)){
+      addEntry(item);
+    } else {
+      final Word singular = new Word(Inflector.singularOf(item.getWord()));
+      if(items.containsKey(singular)){
+        if(StopWords.isStopWord(stopWords, singular.getWord())) return;
+        addEntry(singular);
+      } else {
+        add(singular, singular.count());
+      }
+    }
+  }
+
+  private void addEntry(Word item) {
+    final Word entry = items.remove(item);
+    if(entry == null) {
+      add(item, item.count());
+    } else {
+      add(entry, entry.count());
+    }
   }
 
   /**
@@ -74,20 +131,17 @@ public class WordCounter {
    * @param item string item
    * @param count number of times this item will be added.
    */
-  public void add(String item, int count) {
-    if(items.containsKey(item)){
-      items.get(item).increment(count);
-    } else {
-      if(!StopWords.isStopWord(stopWords, item)){
-        final Counter newCounter = new Counter(item);
-        newCounter.increment(count);
-        items.put(item, newCounter);
-      }
-    }
-
+  public void add(Word item, int count) {
+    items.put(item, item);
     totalItemCount.addAndGet(count);
   }
 
+  /**
+   * @return the list of values seen by this counter.
+   */
+  public List<Word> getWords(){
+    return items.values().stream().collect(Collectors.toList());
+  }
 
 
   /**
@@ -99,13 +153,8 @@ public class WordCounter {
   public WordCounter combine(final WordCounter wordCounter) {
     final WordCounter newWordCounter = new WordCounter();
 
-    for (final Map.Entry<String, Counter> e : this.items.entrySet()) {
-      newWordCounter.add(e.getKey(), e.getValue().value());
-    }
-
-    for (final Map.Entry<String, Counter> e : wordCounter.items.entrySet()) {
-      newWordCounter.add(e.getKey(), e.getValue().value());
-    }
+    this.getWords().forEach(newWordCounter::add);
+    wordCounter.getWords().forEach(newWordCounter::add);
 
     return newWordCounter;
   }
@@ -123,13 +172,12 @@ public class WordCounter {
    * @param k number of results to collect.
    * @return A list of the min(k, size()) most frequent items
    */
-  public List<String> mostFrequent(int k) {
-    final List<Map.Entry<String, Counter>> all = entriesByFrequency();
+  public List<Word> mostFrequent(int k) {
+    final List<Word> all = entriesByFrequency();
     final int resultSize = Math.min(k, items.size());
-    final List<String> result = new ArrayList<>(resultSize);
+    final List<Word> result = new ArrayList<>(resultSize);
 
     result.addAll(all.subList(0, resultSize).stream()
-      .map(Map.Entry::getKey)
       .collect(Collectors.toList()));
 
     return Collections.unmodifiableList(result);
@@ -140,15 +188,41 @@ public class WordCounter {
    *
    * @return the list of ordered items.
    */
-  private List<Map.Entry<String, Counter>> entriesByFrequency() {
-    final List<Map.Entry<String, Counter>> all = new ArrayList<>(
-      items.entrySet()
-    );
+  private List<Word> entriesByFrequency() {
+    final List<Word> words = items.entrySet().stream()
+      .map(Map.Entry::getValue)
+      .collect(Collectors.toList());
 
-    return BY_FREQ_ASC.reverse().sortedCopy(all);
+    return BY_FREQ_ASC.reverse().sortedCopy(words);
   }
 
   @Override public String toString() {
-    return items.toString().replace("[", "(").replace("]", ")");
+    return itemsCount() + " found: "
+      + items.toString().replace("[", "(").replace("]", ")");
+  }
+
+  private static class ParEach<T> extends CountedCompleter<Void> {
+    final Spliterator<T> spliterator;
+    final Consumer<T> action;
+    final long targetBatchSize;
+
+    ParEach(ParEach<T> parent, Spliterator<T> spliterator,
+            Consumer<T> action, long targetBatchSize) {
+      super(parent);
+      this.spliterator = spliterator;
+      this.action = action;
+      this.targetBatchSize = targetBatchSize;
+    }
+
+    public void compute() {
+      Spliterator<T> sub;
+      while (spliterator.estimateSize() > targetBatchSize &&
+        (sub = spliterator.trySplit()) != null) {
+        addToPendingCount(1);
+        new ParEach<>(this, sub, action, targetBatchSize).fork();
+      }
+      spliterator.forEachRemaining(action);
+      propagateCompletion();
+    }
   }
 }

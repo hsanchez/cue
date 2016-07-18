@@ -1,5 +1,6 @@
 package com.vesperin.cue.text;
 
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -30,7 +31,8 @@ public interface WordCorrector {
 
   static boolean onlyConsonants(String word) {
     // thx to http://stackoverflow.com/q/26536829/26536928
-    return !(word == null || word.isEmpty()) && word.matches("[^aeiou]+$");
+    return !(word == null || word.isEmpty())
+      && word.toLowerCase(Locale.ENGLISH).matches("[^aeiou]+$");
   }
 
   static boolean isNumber(String input) {
