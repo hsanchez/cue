@@ -95,7 +95,7 @@ public class RepresentativeAnalysisCommand implements IntrospectorWithCli.CliCom
   private void mostRepresentative(Set<String> relevant, List<Source> corpus) {
     final Introspector    cue       = Cue.newIntrospector();
     final Set<Source>     corpusSet = corpus.stream().collect(Collectors.toSet());
-    final Stream<Source>  stream    = cue.representativeTypicalityQuery(corpusSet, relevant).stream();
+    final Stream<Source>  stream    = cue.representativeSources(corpusSet, relevant).stream();
 
     final Optional<Source> optional = stream.findFirst();
     if(optional.isPresent()){

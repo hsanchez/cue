@@ -1,12 +1,8 @@
 package com.vesperin.cue;
 
-import Jama.Matrix;
-import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.vesperin.base.Context;
 import com.vesperin.base.Source;
@@ -15,315 +11,27 @@ import com.vesperin.base.locations.Locations;
 import com.vesperin.base.locators.ProgramUnitLocation;
 import com.vesperin.base.locators.UnitLocation;
 import com.vesperin.cue.segment.Segments;
-import com.vesperin.cue.spi.Cluster;
-import com.vesperin.cue.spi.Kmeans;
 import com.vesperin.cue.spi.SourceSelection;
-import com.vesperin.cue.spi.Words;
-import com.vesperin.cue.text.Word;
-import com.vesperin.cue.text.WordCounter;
-import com.vesperin.cue.text.WordVisitor;
-import com.vesperin.cue.utils.AstUtils;
-import com.vesperin.cue.utils.Jamas;
-import com.vesperin.cue.utils.Similarity;
 import com.vesperin.cue.utils.Sources;
-import com.vesperin.cue.utils.Threads;
-import org.eclipse.jdt.core.dom.CompilationUnit;
 
-import java.io.PrintWriter;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.vesperin.cue.utils.AstUtils.methodName;
-import static com.vesperin.cue.utils.Similarity.similarityScore;
+import static com.vesperin.text.utils.Similarity.similarityScore;
 import static java.util.stream.Collectors.toList;
 
 /**
  * @author Huascar Sanchez
  */
 public interface Introspector {
-
-  AtomicInteger COUNTER = new AtomicInteger(0);
-
-  /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a list of
-   * sources.
-   *
-   * @param sources list of sources to inspect.
-   * @return a new list of guessed concepts.
-   */
-  default List<Word> assignedConcepts(List<Source> sources){
-    return assignedConcepts(Integer.MAX_VALUE, sources);
-  }
-
-  /**
-   * Determine the concepts that appear in a list of
-   * sources.
-   *
-   * @param topK k most frequent concepts in the list of sources.
-   * @param sources list of sources to inspect.
-   * @return a new list of guessed concepts.
-   */
-  default List<Word> assignedConcepts(int topK, List<Source> sources){
-    return assignedConcepts(topK, sources, ImmutableSet.of());
-  }
-
-  /**
-   * Determine the concepts that appear in oi list of
-   * sources.
-   *
-   * @param topK k most frequent concepts in the list of sources.
-   * @param sources list of sources to inspect.
-   * @param relevantSet set of relevant method names
-   * @return oi new list of guessed concepts.
-   */
-  default List<Word> assignedConcepts(int topK, List<Source> sources, final Set<String> relevantSet){
-
-    final ExecutorService service = Threads.newExecutorService(sources.size()/topK);
-    final WordCounter     counter = new WordCounter();
-
-    final Map<Source, List<Word>> documentToWordList = new ConcurrentHashMap<>();
-    final Set<Word> wordSet = ConcurrentHashMap.newKeySet();
-
-    // 1. build document to word-list map
-    for(final Source each : sources){
-      if(each.getName().equals("package-info")){
-        continue;
-      }
-
-      service.execute(
-        () -> {
-          final List<Word> wordList = assignedConcepts(each, relevantSet);
-          documentToWordList.put(each, wordList);
-          wordSet.addAll(wordList);
-          counter.addAll(wordList);
-        }
-      );
-    }
-
-    // shuts down the executor service
-    Threads.shutdownExecutorService(service);
-
-    final Map<Integer,Word> wordIdValueMap = new HashMap<>();
-
-    // 2. create a Map of ids to words from the wordSet
-    int wordId = 0;
-    for (Word word : wordSet) {
-      wordIdValueMap.put(wordId, word);
-      wordId++;
-    }
-
-    // we need a documents.keySet().size() x wordSet.size() matrix to hold
-    // this info
-    final int         numDocs   = sources.size();
-    final int         numWords  = wordSet.size();
-    final double[][]  data      = new double[numWords][numDocs];
-
-    for (int i = 0; i < numWords; i++) {
-      for (int j = 0; j < numDocs; j++) {
-
-        final List<Word> ws = documentToWordList.get(sources.get(j));
-        if(ws == null) continue;
-
-        final Word word = wordIdValueMap.get(i);
-
-        int count = 0; for(Word each : ws){
-          if(Objects.equals(each, word)) count++;
-        }
-
-        data[i][j] = count;
-      }
-    }
-
-    final List<String> documents = sources.stream().map(Source::getName).collect(toList());
-    final List<Word>   wordList  = wordSet.stream().collect(toList());
-
-//
-//    System.out.println("\n\n\n");
-//    System.out.println("BEGIN: WORDS");
-//    wordList.forEach(e -> System.out.print(e.getWord() + " "));
-//    System.out.println("END: WORDS");
-
-    System.out.println("\n\n\n");
-
-    final Matrix raw    = new Matrix(data);
-    Jamas.printMatrix("RAW", raw, documents, wordList, new PrintWriter(System.out));
-
-    // Turns tf-idf statistic into a score (to be used as word ranking)
-    final Matrix tfidf = Jamas.tfidfMatrix(raw);
-
-    System.out.println(String.format("[INFO] matrix %d x %d", tfidf.getRowDimension(), tfidf.getColumnDimension()));
-    System.out.println("[INFO] # methods inspected? " + COUNTER.get());
-
-    return topKWord(topK, tfidf, wordList);
-  }
-
-
-  default List<Word> topKWord(int k, Matrix matrix, List<Word> wordList){
-
-    final Map<Word, Double> scores = new HashMap<>();
-    for (int i = 0; i < matrix.getRowDimension(); i++) {
-      final double s = Jamas.rowSum(matrix, i);
-      scores.put(wordList.get(i), s);
-    }
-
-    return scores.entrySet().stream()
-      .sorted((a, b) -> Doubles.compare(b.getValue(), a.getValue()))
-      .limit(k).map(Map.Entry::getKey).collect(toList());
-  }
-
-
-  default List<Cluster> clusters(List<Word> topWords, List<Source> sources){
-
-
-    System.out.println("\n\n\n");
-    System.out.println("BEGIN: WORDS");
-    topWords.forEach(e -> System.out.print(e.getWord() + " "));
-    System.out.println("END: WORDS");
-
-    final Map<Source, List<Word>> documentToWordList = new ConcurrentHashMap<>();
-    final List<Source> corpus = Lists.newArrayList();
-
-    for( Source src : sources){
-      for(Word w : topWords){
-        final String lowerCaseContent = src.getContent().toLowerCase(Locale.ENGLISH);
-        if(lowerCaseContent.contains(w.getWord())){
-          if(documentToWordList.containsKey(src)){
-            documentToWordList.get(src).add(w);
-            corpus.add(src);
-          } else {
-            documentToWordList.put(src, Lists.newArrayList(w));
-            corpus.add(src);
-          }
-        }
-      }
-    }
-
-    final Map<Integer,Word> wordIdValueMap = new HashMap<>();
-
-    // 2. create a Map of ids to words from the wordSet
-    int wordId = 0;
-    for (Word word : topWords) {
-      wordIdValueMap.put(wordId, word);
-      wordId++;
-    }
-
-    final int         numDocs   = documentToWordList.keySet().size();
-    final int         numWords  = topWords.size();
-    final double[][]  data      = new double[numWords][numDocs];
-
-    for (int i = 0; i < numWords; i++) {
-      for (int j = 0; j < numDocs; j++) {
-
-        final List<Word> ws = documentToWordList.get(corpus.get(j));
-        final Word word = wordIdValueMap.get(i);
-
-        int count = 0; for(Word each : ws){
-          if(Objects.equals(each, word)) count++;
-        }
-
-        data[i][j] = count;
-      }
-    }
-
-    final List<String> documents = documentToWordList.keySet().stream()
-      .map(Source::getName).collect(toList());
-
-    final Matrix rawMatrix = new Matrix(data);
-    Jamas.printRawFreqMatrix(rawMatrix, documents, topWords);
-
-    final Matrix lsiMatrix = Jamas.runLSI(rawMatrix);
-    Jamas.printMatrix("LSI matrix", lsiMatrix, documents, topWords, new PrintWriter(System.out));
-
-    final Words words = new Words(lsiMatrix, topWords);
-
-    return Kmeans.cluster(words);
-  }
-
-
-  /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a given source code.
-   *
-   * @param code source code to introspect.
-   * @return a new list of guessed concepts.
-   */
-  default List<Word> assignedConcepts(Source code){
-    return assignedConcepts(code, ImmutableSet.of());
-  }
-
-
-  /**
-   * Determine the concepts (capped to 10 suggestions) that appear in a given source code.
-   *
-   * @param code source code to introspect.
-   * @param relevant set of relevant method names. At least one match should exist.
-   * @return a new list of guessed concepts.
-   */
-  default List<Word> assignedConcepts(Source code, final Set<String> relevant){
-    final Context   context = Sources.from(code);
-
-    final UnitLocation unit = relevant.isEmpty()
-      ? locatedCompilationUnit(context)
-      : locatedMethod(context, relevant);
-
-    if(unit == null) return ImmutableList.of();
-
-    COUNTER.addAndGet(AstUtils.methodCount(unit.getUnitNode()));
-
-    return assignedConcepts(unit, 10);
-  }
-
-  /**
-   * Determine the top k most concepts that appear within a located unit.
-   *
-   * @param locatedUnit list of sources to inspect.
-   * @param topK k most frequent concepts in the list of sources.
-   * @return a new list of guessed concepts.
-   */
-  default List<Word> assignedConcepts(Location locatedUnit, int topK){
-    final UnitLocation  unitLocation  = (UnitLocation) Objects.requireNonNull(locatedUnit);
-    final Stopwatch watch = Stopwatch.createStarted();
-    final Set<Location> irrelevantSet = unitLocation.getUnitNode() instanceof CompilationUnit ?
-      new HashSet<>() : Segments.irrelevantLocations(unitLocation);
-    System.out.println(String.format("Find irrelevant locations (%d): ", irrelevantSet.size()) + watch);
-
-    return interestingConcepts(topK, unitLocation, irrelevantSet);
-  }
-
-  /**
-   * Determine the top k most interesting concepts that appear within a located unit.
-   *
-   * @param topK k most frequent concepts in the list of sources.
-   * @param located located unit.
-   * @param irrelevantSet set of irrelevant names
-   * @return a new list of interesting concepts.
-   */
-  default List<Word> interestingConcepts(int topK, UnitLocation located,
-          Set<Location> irrelevantSet){
-    // collect frequent words outside the blacklist of locations
-    Stopwatch stopwatch = Stopwatch.createStarted();
-
-    System.out.println("#interestingConcepts: Warming up " + located.getSource().getName());
-
-    if(located.getSource().getName().equals("DynamicsWorld")){
-      System.out.println(located);
-    }
-
-    final WordVisitor extractor   = new WordVisitor(irrelevantSet);
-    located.getUnitNode().accept(extractor);
-
-    System.out.println("#interestingConcepts: Started counting " + located.getSource().getName() + ": " + stopwatch);
-
-    final List<Word> words = extractor.getItems();
-    System.out.println(String.format("Finished counting with %s : #%s words", located.getSource().getName(), words.size()));
-    final WordCounter wordCounter = new WordCounter(words);
-
-    System.out.println("#interestingConcepts: Count words " + stopwatch);
-
-    return wordCounter.mostFrequent(topK);
-  }
 
   /**
    * Finds those typical source objects in T (most representative) that are different from each
@@ -335,8 +43,8 @@ public interface Introspector {
    * @return a smaller list of typical source objects representing the whole set of source objects
    *  implementing a similar functionality.
    */
-  default List<Source> representativeTypicalityQuery(Set<Source> resultSet, Set<String> domain){
-    return representativeTypicalityQuery(5/*optimization: 5 most typical are enough*/, resultSet, domain);
+  default List<Source> representativeSources(Set<Source> resultSet, Set<String> domain){
+    return representativeSources(5/*optimization: 5 most typical are enough*/, resultSet, domain);
   }
 
   /**
@@ -350,7 +58,7 @@ public interface Introspector {
    * @return a smaller list of typical source objects representing the whole set of source objects
    *  implementing a similar functionality.
    */
-  default List<Source> representativeTypicalityQuery(int topk, Set<Source> resultSet, Set<String> domain) {
+  default List<Source> representativeSources(int topk, Set<Source> resultSet, Set<String> domain) {
     final Map<Source, List<Source>> region = interestingRegion(topk, resultSet, domain);
 
     final Comparator<Map.Entry<Source, List<Source>>> byValue =
@@ -545,7 +253,7 @@ public interface Introspector {
   }
 
   static float score(Source a, Source b, Map<Source, String> summaries){
-    return Similarity.similarityScore(
+    return similarityScore(
       summaries.get(a), summaries.get(b)
     );
   }
@@ -651,35 +359,6 @@ public interface Introspector {
 
     @Override public String data() {
       return data;
-    }
-  }
-
-  /**
-   * Coverage relation between typical source file and non typical source files.
-   */
-  class Coverage implements Feature <Map<Source, List<Source>>> {
-    final Map<Source, List<Source>> region;
-
-    Coverage(){
-      this.region = new HashMap<>();
-    }
-
-    /**
-     * Adds coverage between source files.
-     *
-     * @param thisCode object to be covered by the other object.
-     * @param toThatCode
-     */
-    public void adds(Source thisCode, Source toThatCode){
-      if(!region.containsKey(toThatCode)){
-        region.put(toThatCode, Lists.newArrayList(thisCode));
-      } else {
-        region.get(toThatCode).add(thisCode);
-      }
-    }
-
-    @Override public Map<Source, List<Source>> data() {
-      return data();
     }
   }
 

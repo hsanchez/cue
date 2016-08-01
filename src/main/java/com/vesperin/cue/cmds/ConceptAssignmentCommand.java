@@ -4,21 +4,24 @@ import com.github.rvesse.airline.HelpOption;
 import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.vesperin.base.Source;
-import com.vesperin.cue.Cue;
-import com.vesperin.cue.Introspector;
 import com.vesperin.cue.IntrospectorWithCli;
-import com.vesperin.cue.spi.Cluster;
-import com.vesperin.cue.text.StopWords;
-import com.vesperin.cue.text.Word;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
+import com.vesperin.text.Grouping;
+import com.vesperin.text.Grouping.Group;
+import com.vesperin.text.Grouping.Groups;
+import com.vesperin.text.Selection;
+import com.vesperin.text.Selection.Word;
+import com.vesperin.text.spelling.StopWords;
 
 import javax.inject.Inject;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * @author Huascar Sanchez
@@ -60,7 +63,6 @@ public class ConceptAssignmentCommand implements IntrospectorWithCli.CliCommand 
   private static int conceptAssignment(String target, String from, int topK) {
 
     final List<Source> corpus = new ArrayList<>();
-    final Introspector cue    = Cue.newIntrospector();
 
     try {
       // check if method file was given
@@ -68,59 +70,36 @@ public class ConceptAssignmentCommand implements IntrospectorWithCli.CliCommand 
         final Path         methods  = Paths.get(from);
         final List<String> allLines = IO.readLines(methods);
 
+        final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
+
         final Set<String> relevantSet = Sources.populate(corpus, allLines);
-        System.out.println(cue.assignedConcepts(topK, corpus, relevantSet));
+        System.out.println(Selection.selects(topK, corpusSet, relevantSet));
 
       } else if (target != null){
         final Path start = Paths.get(target);
         corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test", "package-info")));
 
+        final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
+
         System.out.println("[INFO] Number of files in corpus? " + corpus.size());
 
         if(topK <= 0) {
-          System.out.println(cue.assignedConcepts(corpus));
+          Selection.selects(Integer.MAX_VALUE, corpusSet);
+          System.out.println(Selection.selects(corpusSet));
         } else {
-          StopWords.JAVA.add(Paths.get(target).getFileName().toString());
+          StopWords.GENERAL.add(Paths.get(target).getFileName().toString());
+          StopWords.JAVA.addAll(Arrays.asList("scala", "get", "max"));
 
-          // the entire body declaration (e.g., all methods) is relevant
-//          final Set<Source> atLeast8  = new HashSet<>();
-//          final Set<Source> atLeast5  = new HashSet<>();
-//          final Set<Source> rest      = new HashSet<>();
-//          final Set<String> terms     = cue.assignedConcepts(topK, corpus).stream().collect(Collectors.toSet());
-//
-//          for(Source each : corpus){
-//            final Context context = Sources.from(each);
-//            final WordVisitor iterator = new WordVisitor();
-//            context.accept(iterator);
-//
-//            final WordCounter counter = new WordCounter(iterator.getItems());
-//            final Set<String> most    = counter.mostFrequent(topK).stream().collect(Collectors.toSet());
-//
-//            final int hit = Sets.intersection(terms, most).size();
-//            if(hit >= 8){
-//              atLeast8.add(each);
-//            } else if (hit >= 5 && hit < 8){
-//              atLeast5.add(each);
-//            } else {
-//              rest.add(each);
-//            }
-//          }
-//
-//
-//          System.out.println(atLeast8.stream().map(Source::getName).collect(Collectors.toList()));
-//          System.out.println(atLeast5.stream().map(Source::getName).collect(Collectors.toList()));
-//          System.out.println(rest.stream().map(Source::getName).collect(Collectors.toList()));
-//
+          final List<Word> words = Selection.selects(
+            topK, corpusSet, StopWords.JAVA, StopWords.ENGLISH, StopWords.GENERAL
+          );
 
-          final List<Word> words = cue.assignedConcepts(topK, corpus);
-          System.out.println(words);
-
-          final List<Cluster> recommend = cue.clusters(words, corpus);
+          final Groups groups = Grouping.formGroups(words);
 
           System.out.println("========================");
           System.out.println("Clusters of semantically similar words:");
-          for(Cluster each : recommend){
-            System.out.println(each.getWords());
+          for(Group each : groups){
+            System.out.println(each);
           }
 
           System.out.println("========================");
