@@ -5,9 +5,9 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.collect.ImmutableSet;
 import com.vesperin.base.Source;
-import com.vesperin.cue.Cue;
-import com.vesperin.cue.Introspector;
-import com.vesperin.cue.IntrospectorWithCli;
+import com.vesperin.cue.TypicalityCliRunner;
+import com.vesperin.cue.Typicality;
+import com.vesperin.cue.TypicalityWithCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -22,14 +22,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.vesperin.cue.IntrospectorWithCli.allNonNull;
-import static com.vesperin.cue.IntrospectorWithCli.allNull;
+import static com.vesperin.cue.TypicalityWithCli.allNonNull;
+import static com.vesperin.cue.TypicalityWithCli.allNull;
 
 /**
  * @author Huascar Sanchez
  */
 @Command(name = "represent", description = "Find most representative object in set")
-public class RepresentativeAnalysisCommand implements IntrospectorWithCli.CliCommand {
+public class RepresentativeAnalysisCommand implements TypicalityWithCli.CliCommand {
 
   @Inject
   HelpOption<TypicalityAnalysisCommand> help;
@@ -93,14 +93,14 @@ public class RepresentativeAnalysisCommand implements IntrospectorWithCli.CliCom
   }
 
   private void mostRepresentative(Set<String> relevant, List<Source> corpus) {
-    final Introspector    cue       = Cue.newIntrospector();
+    final Typicality cue       = TypicalityCliRunner.newTypicalityCli();
     final Set<Source>     corpusSet = corpus.stream().collect(Collectors.toSet());
-    final Stream<Source>  stream    = cue.representativeSources(corpusSet, relevant).stream();
+    final Stream<Source>  stream    = cue.bestOf(corpusSet, relevant).stream();
 
     final Optional<Source> optional = stream.findFirst();
     if(optional.isPresent()){
       final Source representative = optional.get();
-      final String snippet = Introspector.methodCode(representative, relevant);
+      final String snippet = Typicality.methodCode(representative, relevant);
       System.out.println(representative.getName());
       System.out.println(snippet);
       System.out.println();

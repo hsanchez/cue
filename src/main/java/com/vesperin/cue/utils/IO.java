@@ -106,10 +106,6 @@ public class IO {
           if(matcher.matches(fileName)){
             final File visitedFile = file.toFile();
 
-            if(visitedFile.getName().contains("package-info")) {
-              System.out.println();
-            }
-
             final String name = visitedFile.getName().replace(".java", "");
             if(!blackSet.contains(name) && inTheClub.test(visitedFile)){
               files.add(visitedFile);

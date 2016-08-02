@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author Huascar Sanchez
  */
-public class IntrospectorTest {
+public class TypicalityTest {
   private static final Source SRC = Source.from("Foo",
     Joiner.on("\n").join(
       ImmutableList.of(
@@ -99,9 +99,10 @@ public class IntrospectorTest {
 
   @Test public void testTypicalityScoreWithIntrospector() throws Exception {
 
-    final Set<String>   relevant  = new HashSet<>();
-    final Set<Source>   corpusSet = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final Source        typical   = Cue.newIntrospector().typicalityQuery(1, corpusSet, relevant).stream()
+    final Set<String>   relevant    = new HashSet<>();
+    final Set<Source>   corpusSet   = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
+    final Typicality    typicality  = Typicality.newTypicality();
+    final Source        typical     = typicality.typicalOf(1, corpusSet, relevant).stream()
       .findFirst().orElse(null);
 
     assertNotNull(typical);
@@ -115,7 +116,7 @@ public class IntrospectorTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final List<Source> representative = Cue.newIntrospector().representativeSources(files, relevant);
+    final List<Source> representative = Typicality.newTypicality().bestOf(files, relevant);
 
     assertTrue(!representative.isEmpty());
   }
@@ -127,10 +128,10 @@ public class IntrospectorTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final Introspector introspector   = Cue.newIntrospector();
+    final Typicality typicality = Typicality.newTypicality();
 
-    final List<Source> represent  = introspector.representativeSources(files, relevant);
-    final List<Source> typical    = introspector.typicalityQuery(represent.size(), files, relevant);
+    final List<Source> represent  = typicality.bestOf(files, relevant);
+    final List<Source> typical    = typicality.typicalOf(represent.size(), files, relevant);
 
     assertEquals(represent.size(), typical.size());
 
@@ -139,7 +140,7 @@ public class IntrospectorTest {
   @Test public void testTypicalityScore() throws Exception {
     final Set<String>   relevant     = new HashSet<>();
     final Set<Source>   corpusSet    = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final List<Source>  typical      = Cue.newIntrospector().typicalityQuery(1, corpusSet, relevant);
+    final List<Source>  typical      = Typicality.newTypicality().typicalOf(1, corpusSet, relevant);
     final Source        mostTypical  = typical.stream().findFirst().orElse(null);
 
     assertNotNull(mostTypical);
@@ -155,7 +156,7 @@ public class IntrospectorTest {
 
     final Set<String> relevant = new HashSet<>();
 
-    final List<Source> typical = Cue.newIntrospector().typicalityQuery(1, files, relevant);
+    final List<Source> typical = Typicality.newTypicality().typicalOf(1, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -167,7 +168,7 @@ public class IntrospectorTest {
     assertThat(!files.isEmpty(), is(true));
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortStack", "sortSet");
-    final List<Source> typical = Cue.newIntrospector().typicalityQuery(1, 0.3, files, relevant);
+    final List<Source> typical = Typicality.newTypicality().typicalOf(1, 0.3, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -183,7 +184,7 @@ public class IntrospectorTest {
   }
 
   private static List<File> collectJavaFilesInResources() {
-    return IO.collectFiles(Paths.get(IntrospectorTest.class.getResource("/").getPath()), "java");
+    return IO.collectFiles(Paths.get(TypicalityTest.class.getResource("/").getPath()), "java");
   }
 
 

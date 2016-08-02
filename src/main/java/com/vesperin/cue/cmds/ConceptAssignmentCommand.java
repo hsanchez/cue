@@ -3,31 +3,40 @@ package com.vesperin.cue.cmds;
 import com.github.rvesse.airline.HelpOption;
 import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
+import com.google.common.base.Joiner;
 import com.vesperin.base.Source;
-import com.vesperin.cue.IntrospectorWithCli;
+import com.vesperin.cue.TypicalityWithCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 import com.vesperin.text.Grouping;
 import com.vesperin.text.Grouping.Group;
 import com.vesperin.text.Grouping.Groups;
+import com.vesperin.text.Query;
 import com.vesperin.text.Selection;
 import com.vesperin.text.Selection.Word;
 import com.vesperin.text.spelling.StopWords;
 
 import javax.inject.Inject;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
 
 /**
  * @author Huascar Sanchez
  */
 @Command(name = "concepts", description = "Recognizing implied concepts in code")
-public class ConceptAssignmentCommand implements IntrospectorWithCli.CliCommand {
+public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
+
+  private static final String MAP_SET_FILE_NAME = "mappings.txt";
 
   @Inject HelpOption<TypicalityAnalysisCommand> help;
 
@@ -87,23 +96,71 @@ public class ConceptAssignmentCommand implements IntrospectorWithCli.CliCommand 
           Selection.selects(Integer.MAX_VALUE, corpusSet);
           System.out.println(Selection.selects(corpusSet));
         } else {
-          StopWords.GENERAL.add(Paths.get(target).getFileName().toString());
-          StopWords.JAVA.addAll(Arrays.asList("scala", "get", "max"));
+          StopWords.GENERAL.addAll(
+            Arrays.asList(Paths.get(target).getFileName().toString(),
+              "released", "initializers",
+              "frustum", "automated", "per",
+              "stored", "zero", "qualified",
+              "cleanup", "normalize", "simple",
+              "value", "threading", "destructor",
+              "damping", "joystick", "matrixf",
+              "aassert", "technique", "iassert",
+              "universally", "anim", "mutex"
+            )
+          );
+
+          StopWords.JAVA.addAll(Arrays.asList("scala", "get", "max", "message", "buffered"));
 
           final List<Word> words = Selection.selects(
             topK, corpusSet, StopWords.JAVA, StopWords.ENGLISH, StopWords.GENERAL
           );
 
+
           final Groups groups = Grouping.formGroups(words);
 
           System.out.println("========================");
-          System.out.println("Clusters of semantically similar words:");
+          System.out.println("Creating mapping.txt");
+
+          final Path newFile = Paths.get(MAP_SET_FILE_NAME);
+          Files.deleteIfExists(newFile);
+
+          final List<String> lines = new ArrayList<>();
+          lines.add("{");
+
+
+          int total = words.size(); for(Word word : words){
+            final Query.Result result = Query.methods(Collections.singletonList(word), groups.index());
+            final List<String> types    = new ArrayList<>();
+            final List<String> methods  = new ArrayList<>();
+            result.forEach(s -> types.add(s.path()));
+            result.forEach(s -> methods.add(s.method()));
+
+            total--;
+
+            lines.add(word + ":" + "{[" + Joiner.on(",").join(result) + "], [" + Joiner.on(",").join(methods) + "]}" + (total > 0 ? "," : ""));
+          }
+
+          lines.add("}");
+
+
+          Files.write(
+            newFile,
+            lines,
+            CREATE, APPEND
+          );
+
+          System.out.println("file created. This file contains many {word: {[types], [methods | constructors (e.g., methods(C))]}} entries");
+
+          System.out.println("========================");
+
+          System.out.println("Additional Info: ");
+          System.out.println("Clusters of semantically related words:");
           for(Group each : groups){
+            if(each.wordList().isEmpty()) continue;
             System.out.println(each);
           }
 
           System.out.println("========================");
-
         }
       } else {
         System.err.println("Unable to parse your input!");

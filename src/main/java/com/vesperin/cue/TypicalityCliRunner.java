@@ -11,37 +11,37 @@ import java.util.concurrent.Future;
 /**
  * @author Huascar Sanchez
  */
-public class Cue implements IntrospectorWithCli {
+public class TypicalityCliRunner implements TypicalityWithCli {
   private final Runner runner;
 
   /**
-   * Constructs a new Introspector with a CLI runner.
+   * Constructs a new Typicality with a CLI runner.
    * @param runner a new Cli Runner.
    */
-  private Cue(Runner runner){
+  private TypicalityCliRunner(Runner runner){
     this.runner = runner;
   }
 
   /**
-   * @return a new Introspector object.
+   * @return a new Typicality object.
    */
-  public static Introspector newIntrospector(){
-    return newIntrospector(new Console());
+  public static TypicalityWithCli newTypicalityCli(){
+    return newTypicalityCli(new Console());
   }
 
   /**
-   * @return a new Introspector object.
+   * @return a new Typicality object.
    */
-  private static Introspector newIntrospector(Runner runner){
+  private static TypicalityWithCli newTypicalityCli(Runner runner){
     Objects.requireNonNull(runner);
-    return new Cue(runner);
+    return new TypicalityCliRunner(runner);
   }
 
   /**
-   * @return a new IntrospectorWithCli object.
+   * @return a new TypicalityWithCli object.
    */
-  private static IntrospectorWithCli newIntrospectorWithCli(){
-    return (IntrospectorWithCli) newIntrospector();
+  private static TypicalityWithCli newIntrospectorWithCli(){
+    return newTypicalityCli();
   }
 
   /**
@@ -54,12 +54,12 @@ public class Cue implements IntrospectorWithCli {
   }
 
   /**
-   * Executes the CLI of an Introspector object and its string arguments.
+   * Executes the CLI of an Typicality object and its string arguments.
    *
-   * @param introspector Introspector object.
+   * @param introspector Typicality object.
    * @param args the command arguments.
    */
-  private static void executeCli(IntrospectorWithCli introspector, String[] args){
+  private static void executeCli(TypicalityWithCli introspector, String[] args){
     Objects.requireNonNull(introspector);
     Objects.requireNonNull(args);
 
@@ -81,7 +81,7 @@ public class Cue implements IntrospectorWithCli {
   }
 
   private static class Console implements Runner {
-    @Override public Result run(CliCommand command) {
+    @Override public Output run(CliCommand command) {
       try {
         final ExecutorService service = Executors.newSingleThreadExecutor();
         final Future<Integer> result  = service.submit(command);
@@ -99,7 +99,7 @@ public class Cue implements IntrospectorWithCli {
   }
 
   public static void main(String[] args) {
-    Cue.executeCli(args);
+    TypicalityCliRunner.executeCli(args);
   }
 
 }

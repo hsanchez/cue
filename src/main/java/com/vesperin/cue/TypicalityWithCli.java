@@ -12,7 +12,7 @@ import java.util.concurrent.Callable;
 /**
  * @author Huascar Sanchez
  */
-public interface IntrospectorWithCli extends Introspector {
+public interface TypicalityWithCli extends Typicality {
 
   /**
    * Checks if all the expected number of arguments are non null.
@@ -63,7 +63,7 @@ public interface IntrospectorWithCli extends Introspector {
    * @param command CLI command
    * @return Runner's result.
    */
-  default Result run(CliCommand command) {
+  default Output run(CliCommand command) {
     return run(command, getCliRunner());
   }
 
@@ -73,7 +73,7 @@ public interface IntrospectorWithCli extends Introspector {
    * @param withRunner CLI's runner strategy.
    * @return Runner's result.
    */
-  default Result run(CliCommand command, Runner withRunner){
+  default Output run(CliCommand command, Runner withRunner){
     Objects.requireNonNull(withRunner);
     Objects.requireNonNull(command);
     return withRunner.run(command);
@@ -82,11 +82,11 @@ public interface IntrospectorWithCli extends Introspector {
   /**
    * Builds its own 'default' CLI.
    *
-   * @return the new Introspector's CLI
+   * @return the new Typicality's CLI
    */
   default Cli<CliCommand> buildCli(){
     return buildCli(Cli.<CliCommand>builder("cue")
-      .withDescription("Cue CLI")
+      .withDescription("TypicalityCliRunner CLI")
       .withCommand(TypicalityAnalysisCommand.class)
       .withCommand(ConceptAssignmentCommand.class)
       .withCommand(RepresentativeAnalysisCommand.class)
@@ -126,13 +126,13 @@ public interface IntrospectorWithCli extends Introspector {
      * @param command CLI command.
      * @return output
      */
-    Result run(CliCommand command);
+    Output run(CliCommand command);
   }
 
   /**
    * Runner's result object.
    */
-  interface Result {
+  interface Output {
     @Override String toString();
   }
 }

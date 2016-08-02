@@ -1,9 +1,9 @@
 package com.vesperin.cue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
 import com.vesperin.base.Context;
 import com.vesperin.base.Source;
 import com.vesperin.base.locations.Location;
@@ -31,20 +31,13 @@ import static java.util.stream.Collectors.toList;
 /**
  * @author Huascar Sanchez
  */
-public interface Introspector {
+public interface Typicality {
 
   /**
-   * Finds those typical source objects in T (most representative) that are different from each
-   * other but jointly represent the whole set of similar objects S;  The produced set R is a
-   * small subset of T.
-   *
-   * @param resultSet the set of source objects implementing a similar functionality.
-   * @param domain relevant method names.
-   * @return a smaller list of typical source objects representing the whole set of source objects
-   *  implementing a similar functionality.
+   * @return a newly created typicality object.
    */
-  default List<Source> representativeSources(Set<Source> resultSet, Set<String> domain){
-    return representativeSources(5/*optimization: 5 most typical are enough*/, resultSet, domain);
+  static Typicality newTypicality(){
+    return new TypicalityImpl();
   }
 
   /**
@@ -52,45 +45,69 @@ public interface Introspector {
    * other but jointly represent the whole set of similar objects S;  The produced set R is a
    * small subset of T.
    *
-   * @param topk k most typical source object in the result set.
+   * @param resultSet the set of source objects implementing a similar functionality.
+   * @return a smaller list of typical source objects representing the whole set of source objects
+   *  implementing a similar functionality.
+   */
+  default List<Source> bestOf(Set<Source> resultSet) {
+    final Map<Source, List<Source>> region = generateRegions(resultSet, ImmutableSet.of());
+
+    return region.entrySet().stream()
+      .sorted(reverseOrder())
+      .map(Map.Entry::getKey)
+      .collect(toList());
+  }
+
+  /**
+   * Finds those typical source objects in T (most representative) that are different from each
+   * other but jointly represent the whole set of similar objects S;  The produced set R is a
+   * small subset of T.
+   *
    * @param resultSet the set of source objects implementing a similar functionality.
    * @param domain relevant method names.
    * @return a smaller list of typical source objects representing the whole set of source objects
    *  implementing a similar functionality.
    */
-  default List<Source> representativeSources(int topk, Set<Source> resultSet, Set<String> domain) {
-    final Map<Source, List<Source>> region = interestingRegion(topk, resultSet, domain);
-
-    final Comparator<Map.Entry<Source, List<Source>>> byValue =
-      (entry1, entry2) ->
-        Ints.compare(entry1.getValue().size(), entry2.getValue().size());
+  default List<Source> bestOf(Set<Source> resultSet, Set<String> domain) {
+    final Map<Source, List<Source>> region = generateRegions(resultSet, domain);
 
     return region.entrySet().stream()
-      .sorted(byValue.reversed())
+      .sorted(reverseOrder())
       .map(Map.Entry::getKey)
       .collect(toList());
+  }
+
+  static Comparator<Map.Entry<Source, List<Source>>> reverseOrder(){
+    return (entry1, entry2) ->
+      Integer.compare(entry1.getValue().size(), entry2.getValue().size());
   }
 
   /**
    * Given two sets, R (resultSet) and T (typicalSet), find the representing region for
    * each element o in T. This region of o corresponds to its closest object e in {R - T}.
    *
-   * @param topk k most typical source object in the result set.
    * @param resultSet the set of source objects implementing a similar functionality.
    * @param domain relevant method names.
    * @return the representing region for members in T.
    */
-  default Map<Source, List<Source>> interestingRegion(int topk, Set<Source> resultSet,
-          Set<String> domain) {
+  default Map<Source, List<Source>> generateRegions(Set<Source> resultSet, Set<String> domain) {
 
-    final List<Source>  topKList    = typicalityQuery(topk/*tunable*/, resultSet, domain);
+    List<Source>  topKList    = typicalOf(5/*top 5 seems reasonable*/, resultSet, domain);
+
+
+    final int resultSetSize   = resultSet.size();
+    final int typicalSetSize  = topKList.size();
+
+    if(resultSetSize == typicalSetSize){
+      topKList = topKList.stream().limit(5).collect(Collectors.toList());
+    }
 
     final Set<Source>   typicalSet  = new LinkedHashSet<>();
     typicalSet.addAll(topKList);
 
     assert topKList.size() == typicalSet.size();
 
-    return interestingRegion(resultSet, typicalSet, domain);
+    return generateRegions(resultSet, typicalSet, domain);
   }
 
   /**
@@ -102,8 +119,7 @@ public interface Introspector {
    * @param relevant relevant methods names to introspect
    * @return the representing region for members in T.
    */
-  default Map<Source, List<Source>> interestingRegion(Set<Source> resultSet, Set<Source> typicalitySet,
-          Set<String> relevant) {
+  default Map<Source, List<Source>> generateRegions(Set<Source> resultSet, Set<Source> typicalitySet, Set<String> relevant) {
 
     final Set<Source> difference = Sets.difference(resultSet, typicalitySet);
 
@@ -141,15 +157,29 @@ public interface Introspector {
    * similar implementations of that functionality. It uses 0.3 as a default
    * bandwidth parameter.
    *
-   * See {@link #typicalityQuery(Set, TypicalityProcessor)} for additional details.
+   * See {@link #typicalOf(Set, TypicalityProcessor)} for additional details.
    *
-   * @param topK top k most typical implementations.
    * @param resultSet a set of source objects implementing a similar functionality.
    * @param relevant relevant methods names to introspect
    * @return a new list of k most typical source objects implementing a similar functionality.
    */
-  default List<Source> typicalityQuery(int topK, Set<Source> resultSet, Set<String> relevant){
-    return typicalityQuery(topK, 0.3, resultSet, relevant);
+  default List<Source> typicalOf(Set<Source> resultSet, Set<String> relevant){
+    return typicalOf(Integer.MAX_VALUE, 0.3D, resultSet, relevant);
+  }
+
+  /**
+   * Finds the top k most typical implementation of some functionality in a set of
+   * similar implementations of that functionality. It uses 0.3 as a default
+   * bandwidth parameter.
+   *
+   * @param topK k most typical/representative source objects, where k cannot
+   *             be greater than the size of the sources set.
+   * @param resultSet a set of source objects implementing a similar functionality.
+   * @param relevant relevant methods names to introspect
+   * @return a new list of k most typical source objects implementing a similar functionality.
+   */
+  default List<Source> typicalOf(int topK, Set<Source> resultSet, Set<String> relevant){
+    return typicalOf(topK, 0.3D, resultSet, relevant);
   }
 
   /**
@@ -164,8 +194,10 @@ public interface Introspector {
    * @param relevant relevant methods names to introspect
    * @return a new list of k most typical source objects implementing a similar functionality.
    */
-  default List<Source> typicalityQuery(int topK, double h, Set<Source> resultSet, Set<String> relevant){
-    return typicalityQuery(resultSet, new SimpleTypicalityProcessor(topK, h, relevant));
+  default List<Source> typicalOf(int topK, double h, Set<Source> resultSet, Set<String> relevant){
+    final List<Source> typicalSet = typicalOf(resultSet, new SimpleTypicalityProcessor(h, relevant));
+    final int toNumber = Math.max(0, Math.min(topK, typicalSet.size()));
+    return typicalSet.stream().limit(toNumber).collect(Collectors.toList());
   }
 
 
@@ -187,7 +219,7 @@ public interface Introspector {
    * @return a new list of the most typical source code implementing a functionality.
    * @see {@code https://www.cs.sfu.ca/~jpei/publications/typicality-vldb07.pdf}
    */
-  default List<Source> typicalityQuery(Set<Source> resultSet, TypicalityProcessor queryProcessor){
+  default List<Source> typicalOf(Set<Source> resultSet, TypicalityProcessor queryProcessor){
     return queryProcessor.process(resultSet);
   }
 
@@ -260,12 +292,12 @@ public interface Introspector {
 
 
   /**
-   * Introspection processor.
+   * Query processor.
    *
    * @param <T> feature type
    * @param <R> return type
    */
-  interface Processor <T, R> {
+  interface Processor<T, R> {
 
     /**
      * Generates a feature for a source and its relevant method.
@@ -299,36 +331,33 @@ public interface Introspector {
   }
 
 
-  interface TypicalityProcessor extends Processor <Snapshot, List<Source>> {
-    /**
-     * @return k most typical value.
-     */
-    int topK();
-
+  /**
+   * Typicality Query Processor
+   */
+  interface TypicalityProcessor extends Processor<Snippet, List<Source>> {
     /**
      * Generates a ranked (by typicality) list of source files.
      *
      * @param scoreboard existing typicality scores.
      * @return a new ranked list
      */
-    default List<Source> rankedList(Map<Snapshot, Double> scoreboard) {
-      final Map<Snapshot, Double> T = Objects.requireNonNull(scoreboard);
+    default List<Source> rankedList(Map<Snippet, Double> scoreboard) {
+      final Map<Snippet, Double> T = Objects.requireNonNull(scoreboard);
 
-      final List<Snapshot> result = T.keySet().stream()
+      final List<Snippet> result = T.keySet().stream()
         .sorted((a, b) -> Double.compare(T.get(b), T.get(a)))
-        .limit(topK())
         .collect(toList());
 
       return result.stream()
-        .map(Snapshot::source)
+        .map(Snippet::source)
         .collect(toList());
     }
   }
 
 
   /**
-   * The feature type. A feature is a characteristic relevant to the typicality
-   * analysis process.
+   * A characteristic used in typicality analysis to identify objective differences
+   * between similar source files.
    *
    * @param <T> parameter type representing the actual type of data held by this feature.
    */
@@ -336,17 +365,17 @@ public interface Introspector {
     /**
      * @return feature's data.
      */
-    T data();
+    T get();
   }
 
   /**
-   * A summary of the Source file as a feature.
+   * A summary of the source file as a feature.
    */
-  class Snapshot implements Feature <String> {
+  class Snippet implements Feature <String> {
     final Source code;
     final String data;
 
-    Snapshot(Source code, String data){
+    Snippet(Source code, String data){
       this.code   = code;
       this.data   = data;
     }
@@ -357,7 +386,7 @@ public interface Introspector {
       return code;
     }
 
-    @Override public String data() {
+    @Override public String get() {
       return data;
     }
   }
@@ -367,7 +396,6 @@ public interface Introspector {
    * Default implementation of typicality analysis.
    */
   class SimpleTypicalityProcessor implements TypicalityProcessor {
-    private final int         topK;
     private final double      h;
     private final Set<String> relevant;
 
@@ -378,31 +406,29 @@ public interface Introspector {
      * @param h smoothing factor
      * @param relevant relevant method names
      */
-    SimpleTypicalityProcessor(int topK, double h, Set<String> relevant){
-      this.topK     = topK;
+    SimpleTypicalityProcessor(double h, Set<String> relevant){
       this.h        = h;
       this.relevant = relevant;
     }
 
-    @Override public Snapshot from(Source source) {
-      return new Snapshot(source, segmentsCode(source, relevant));
+    @Override public Snippet from(Source source) {
+      return new Snippet(source, segmentsCode(source, relevant));
     }
 
     @Override public List<Source> process(Set<Source> sources){
       if(sources.isEmpty()) return ImmutableList.of();
-      if(topK() <= 0)       return ImmutableList.of();
 
-      final Map<Snapshot, Double> T = new HashMap<>();
-      final Set<Snapshot> features  = from(sources);
+      final Map<Snippet, Double> T = new HashMap<>();
+      final Set<Snippet> features  = from(sources);
 
       // Compute the cartesian product of the sources object
-      final Set<List<Snapshot>> cartesian = Sets.cartesianProduct(
+      final Set<List<Snippet>> cartesian = Sets.cartesianProduct(
         Arrays.asList(features, features)
       );
 
 
       // Initialize these features' scores
-      for(Snapshot code : features){
+      for(Snippet code : features){
         T.put(code, 0.0);
       }
 
@@ -411,9 +437,9 @@ public interface Introspector {
       double t1  = 1.0d / (T.keySet().size() - 1) * Math.sqrt(2.0 * Math.PI);
       double t2  = 2.0 * Math.pow(h, 2);
 
-      for(List<Snapshot> each : cartesian){
-        final Snapshot oi = each.get(0);
-        final Snapshot oj = each.get(1);
+      for(List<Snippet> each : cartesian){
+        final Snippet oi = each.get(0);
+        final Snippet oj = each.get(1);
 
         double w = gaussianKernel(t1, t2, oi, oj);
         double Toi = T.get(oi) + w;
@@ -427,20 +453,18 @@ public interface Introspector {
     }
 
 
-    static double gaussianKernel(double t1, double t2, Snapshot oi, Snapshot oj){
+    static double gaussianKernel(double t1, double t2, Snippet oi, Snippet oj){
       return t1 * Math.exp(-(Math.pow(score(oi, oj), 2) / t2));
     }
 
     static double score(Feature<String> a, Feature<String> b){
-      return similarityScore(a.data(), b.data());
-    }
-
-    @Override public int topK() {
-      return topK;
+      return similarityScore(a.get(), b.get());
     }
 
     @Override public String toString() {
       return "SimpleTypicalityProcessor (smoothingFactor = " + h + ")";
     }
   }
+
+  class TypicalityImpl implements Typicality {}
 }
