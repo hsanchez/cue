@@ -5,9 +5,8 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.base.Strings;
 import com.vesperin.base.Source;
-import com.vesperin.cue.TypicalityCliRunner;
+import com.vesperin.cue.BasicCli;
 import com.vesperin.cue.Typicality;
-import com.vesperin.cue.TypicalityWithCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -23,8 +22,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.vesperin.cue.TypicalityWithCli.allNonNull;
-import static com.vesperin.cue.TypicalityWithCli.allNull;
+import static com.vesperin.cue.BasicCli.allNonNull;
+import static com.vesperin.cue.BasicCli.allNull;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 
@@ -32,7 +31,7 @@ import static java.nio.file.StandardOpenOption.CREATE;
  * @author Huascar Sanchez
  */
 @Command(name = "typical", description = "Finds the top k most typical implementation")
-public class TypicalityAnalysisCommand implements TypicalityWithCli.CliCommand {
+public class TypicalityAnalysisCommand implements BasicCli.CliCommand {
 
   private static final String TYPICAL_SET_FILE_NAME = "typicalset.txt";
 
@@ -119,7 +118,7 @@ public class TypicalityAnalysisCommand implements TypicalityWithCli.CliCommand {
 
   private void performTypicalityQuery(List<Source> corpus, Set<String> relevant) {
 
-    final Typicality cue = TypicalityCliRunner.newTypicalityCli();
+    final Typicality cue = Typicality.creates();
     final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
     final List<Source> result = cue.typicalOf(topK, bandwidth, corpusSet, relevant);
     if(result.isEmpty()){

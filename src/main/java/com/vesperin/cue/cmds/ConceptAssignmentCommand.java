@@ -5,14 +5,15 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.base.Joiner;
 import com.vesperin.base.Source;
-import com.vesperin.cue.TypicalityWithCli;
+import com.vesperin.cue.BasicCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 import com.vesperin.text.Grouping;
 import com.vesperin.text.Grouping.Group;
 import com.vesperin.text.Grouping.Groups;
+import com.vesperin.text.Index;
 import com.vesperin.text.Query;
-import com.vesperin.text.Selection;
+import com.vesperin.text.Query.Result;
 import com.vesperin.text.Selection.Word;
 import com.vesperin.text.spelling.StopWords;
 
@@ -23,10 +24,14 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.vesperin.text.Selection.Document;
+import static com.vesperin.text.Selection.selects;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 
@@ -34,9 +39,11 @@ import static java.nio.file.StandardOpenOption.CREATE;
  * @author Huascar Sanchez
  */
 @Command(name = "concepts", description = "Recognizing implied concepts in code")
-public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
+public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
-  private static final String MAP_SET_FILE_NAME = "mappings.txt";
+  private static final String MAP_SET_TYPE_FILE_NAME = "typestowords.txt";
+  private static final String MAP_SET_WORD_FILE_NAME = "wordstotypes.txt";
+  private static final String MAP_SET_CLUSTERS_NAME  = "clusters.txt";
 
   @Inject HelpOption<TypicalityAnalysisCommand> help;
 
@@ -82,7 +89,7 @@ public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
         final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
 
         final Set<String> relevantSet = Sources.populate(corpus, allLines);
-        System.out.println(Selection.selects(topK, corpusSet, relevantSet));
+        System.out.println(selects(topK, corpusSet, relevantSet));
 
       } else if (target != null){
         final Path start = Paths.get(target);
@@ -93,8 +100,8 @@ public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
         System.out.println("[INFO] Number of files in corpus? " + corpus.size());
 
         if(topK <= 0) {
-          Selection.selects(Integer.MAX_VALUE, corpusSet);
-          System.out.println(Selection.selects(corpusSet));
+          selects(Integer.MAX_VALUE, corpusSet);
+          System.out.println(selects(corpusSet));
         } else {
           StopWords.GENERAL.addAll(
             Arrays.asList(Paths.get(target).getFileName().toString(),
@@ -111,37 +118,61 @@ public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
 
           StopWords.JAVA.addAll(Arrays.asList("scala", "get", "max", "message", "buffered"));
 
-          final List<Word> words = Selection.selects(
+          final List<Word> words = selects(
             topK, corpusSet, StopWords.JAVA, StopWords.ENGLISH, StopWords.GENERAL
           );
 
 
-          final Groups groups = Grouping.formGroups(words);
+          final Groups  groups = Grouping.formDocGroups(words);
+          final Index   index  = groups.index();
 
-          System.out.println("========================");
-          System.out.println("Creating mapping.txt");
-
-          final Path newFile = Paths.get(MAP_SET_FILE_NAME);
-          Files.deleteIfExists(newFile);
-
+          final List<String> clusters = new ArrayList<>();
           final List<String> lines = new ArrayList<>();
+
+          clusters.add("{");
           lines.add("{");
 
+          int c = 1; for(Group eachGroup : groups){
+            final List<Document>  query = Group.items(eachGroup, Document.class);
 
-          int total = words.size(); for(Word word : words){
-            final Query.Result result = Query.methods(Collections.singletonList(word), groups.index());
-            final List<String> types    = new ArrayList<>();
-            final List<String> methods  = new ArrayList<>();
-            result.forEach(s -> types.add(s.path()));
-            result.forEach(s -> methods.add(s.method()));
+            final Result resultSet = Query.types(query, index);
 
-            total--;
+            clusters.add((String.format(" %d.", c) + " " + query + ": " + resultSet));
 
-            lines.add(word + ":" + "{[" + Joiner.on(",").join(result) + "], [" + Joiner.on(",").join(methods) + "]}" + (total > 0 ? "," : ""));
+            int total = words.size(); for(Document eachDocument : query){
+              final Result result = Query.types(Collections.singletonList(eachDocument), index);
+              final List<Word> wordList =  Result.items(result, Word.class).stream()
+                .sorted((a, b) -> Integer.compare(b.value(), a.value()))
+                .collect(Collectors.toList());
+
+              lines.add(eachDocument + ": {" + wordList + "}" + (total > 0 ? "," : ""));
+              total--;
+            }
+
+            System.out.print("c.");
+
+            c++;
           }
+          System.out.println();
 
           lines.add("}");
+          clusters.add("}");
 
+          Path newFile = Paths.get(MAP_SET_CLUSTERS_NAME);
+          Files.deleteIfExists(newFile);
+
+
+          System.out.println("[INFO]: Creating " + MAP_SET_CLUSTERS_NAME + " file.");
+          Files.write(
+            newFile,
+            clusters,
+            CREATE, APPEND
+          );
+
+          System.out.println("[INFO]: Creating " + MAP_SET_TYPE_FILE_NAME);
+
+          newFile = Paths.get(MAP_SET_TYPE_FILE_NAME);
+          Files.deleteIfExists(newFile);
 
           Files.write(
             newFile,
@@ -149,18 +180,41 @@ public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
             CREATE, APPEND
           );
 
-          System.out.println("file created. This file contains many {word: {[types], [methods | constructors (e.g., methods(C))]}} entries");
+          lines.clear();
+          clusters.clear();
 
-          System.out.println("========================");
+          System.out.println("[INFO]: Creating "  + MAP_SET_WORD_FILE_NAME + " file.");
 
-          System.out.println("Additional Info: ");
-          System.out.println("Clusters of semantically related words:");
-          for(Group each : groups){
-            if(each.wordList().isEmpty()) continue;
-            System.out.println(each);
+          newFile = Paths.get(MAP_SET_WORD_FILE_NAME);
+          Files.deleteIfExists(newFile);
+
+          lines.add("{");
+
+          int total = words.size(); for(Word word : words){
+            final Result result = Query.methods(Collections.singletonList(word), groups.index());
+            final Map<String, String> pairs = new LinkedHashMap<>();
+
+            result.forEach(s -> pairs.put(((Document)s).path(), ((Document)s).method()));
+
+            total--;
+
+            final String entry = word + ":" + "{[" + Joiner.on(",").join(pairs.keySet()) + "], [" + Joiner.on(",").join(pairs.values()) + "]}" + (total > 0 ? "," : "");
+            System.out.print("e.");
+
+            lines.add(entry);
           }
 
-          System.out.println("========================");
+          lines.add("}");
+          System.out.println();
+
+          Files.write(
+            newFile,
+            lines,
+            CREATE, APPEND
+          );
+
+          System.out.println("[INFO]: Files " + MAP_SET_TYPE_FILE_NAME + " and " + MAP_SET_WORD_FILE_NAME + " and " + MAP_SET_CLUSTERS_NAME + " were created.");
+
         }
       } else {
         System.err.println("Unable to parse your input!");
@@ -171,6 +225,8 @@ public class ConceptAssignmentCommand implements TypicalityWithCli.CliCommand {
       return -1;
     }
 
-   return 0;
+    return 0;
   }
+
+
 }

@@ -36,7 +36,7 @@ public interface Typicality {
   /**
    * @return a newly created typicality object.
    */
-  static Typicality newTypicality(){
+  static Typicality creates(){
     return new TypicalityImpl();
   }
 

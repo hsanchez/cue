@@ -70,7 +70,7 @@ public class TypicalityTest {
 
     try {
       final List<Word> words = Selection.selects(100, set);
-      final Groups groups = Grouping.formGroups(words);
+      final Groups groups = Grouping.formWordGroups(words);
       final Group group = Iterables.get(groups, 0);
 
       assertNotNull(group);
@@ -101,7 +101,7 @@ public class TypicalityTest {
 
     final Set<String>   relevant    = new HashSet<>();
     final Set<Source>   corpusSet   = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final Typicality    typicality  = Typicality.newTypicality();
+    final Typicality    typicality  = Typicality.creates();
     final Source        typical     = typicality.typicalOf(1, corpusSet, relevant).stream()
       .findFirst().orElse(null);
 
@@ -116,7 +116,7 @@ public class TypicalityTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final List<Source> representative = Typicality.newTypicality().bestOf(files, relevant);
+    final List<Source> representative = Typicality.creates().bestOf(files, relevant);
 
     assertTrue(!representative.isEmpty());
   }
@@ -128,7 +128,7 @@ public class TypicalityTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final Typicality typicality = Typicality.newTypicality();
+    final Typicality typicality = Typicality.creates();
 
     final List<Source> represent  = typicality.bestOf(files, relevant);
     final List<Source> typical    = typicality.typicalOf(represent.size(), files, relevant);
@@ -140,7 +140,7 @@ public class TypicalityTest {
   @Test public void testTypicalityScore() throws Exception {
     final Set<String>   relevant     = new HashSet<>();
     final Set<Source>   corpusSet    = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final List<Source>  typical      = Typicality.newTypicality().typicalOf(1, corpusSet, relevant);
+    final List<Source>  typical      = Typicality.creates().typicalOf(1, corpusSet, relevant);
     final Source        mostTypical  = typical.stream().findFirst().orElse(null);
 
     assertNotNull(mostTypical);
@@ -156,7 +156,7 @@ public class TypicalityTest {
 
     final Set<String> relevant = new HashSet<>();
 
-    final List<Source> typical = Typicality.newTypicality().typicalOf(1, files, relevant);
+    final List<Source> typical = Typicality.creates().typicalOf(1, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -168,7 +168,7 @@ public class TypicalityTest {
     assertThat(!files.isEmpty(), is(true));
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortStack", "sortSet");
-    final List<Source> typical = Typicality.newTypicality().typicalOf(1, 0.3, files, relevant);
+    final List<Source> typical = Typicality.creates().typicalOf(1, 0.3, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }

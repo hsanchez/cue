@@ -5,9 +5,8 @@ import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.collect.ImmutableSet;
 import com.vesperin.base.Source;
-import com.vesperin.cue.TypicalityCliRunner;
+import com.vesperin.cue.BasicCli;
 import com.vesperin.cue.Typicality;
-import com.vesperin.cue.TypicalityWithCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
 
@@ -22,14 +21,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.vesperin.cue.TypicalityWithCli.allNonNull;
-import static com.vesperin.cue.TypicalityWithCli.allNull;
+import static com.vesperin.cue.BasicCli.allNonNull;
+import static com.vesperin.cue.BasicCli.allNull;
 
 /**
  * @author Huascar Sanchez
  */
 @Command(name = "represent", description = "Find most representative object in set")
-public class RepresentativeAnalysisCommand implements TypicalityWithCli.CliCommand {
+public class RepresentativeAnalysisCommand implements BasicCli.CliCommand {
 
   @Inject
   HelpOption<TypicalityAnalysisCommand> help;
@@ -93,7 +92,7 @@ public class RepresentativeAnalysisCommand implements TypicalityWithCli.CliComma
   }
 
   private void mostRepresentative(Set<String> relevant, List<Source> corpus) {
-    final Typicality cue       = TypicalityCliRunner.newTypicalityCli();
+    final Typicality cue       = Typicality.creates();
     final Set<Source>     corpusSet = corpus.stream().collect(Collectors.toSet());
     final Stream<Source>  stream    = cue.bestOf(corpusSet, relevant).stream();
 
