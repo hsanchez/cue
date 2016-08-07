@@ -137,7 +137,7 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
             final Result resultSet = Query.types(query, index);
 
-            clusters.add((String.format(" %d.", c) + " " + query + ": " + resultSet));
+            clusters.add((query + ": " + resultSet));
 
             int total = words.size(); for(Document eachDocument : query){
               final Result result = Query.types(Collections.singletonList(eachDocument), index);
