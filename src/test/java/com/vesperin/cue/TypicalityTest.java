@@ -69,7 +69,7 @@ public class TypicalityTest {
     Set<Source> set = ImmutableSet.of(Corpus.five(), Corpus.four(), Corpus.two());
 
     try {
-      final List<Word> words = Selection.selects(100, set);
+      final List<Word> words = Selection.selects(100, set, Selection.inspectMethodBody(StopWords.of(StopWords.ENGLISH, StopWords.JAVA)));
       final Groups groups = Grouping.formWordGroups(words);
       final Group group = Iterables.get(groups, 0);
 
@@ -86,7 +86,7 @@ public class TypicalityTest {
       "println", "create", "text", "code", "configuration", "process"
     );
 
-    final List<Word> concepts = Selection.selects(200, Sets.newHashSet(SRC), StopWords.ENGLISH, StopWords.JAVA);
+    final List<Word> concepts = Selection.selects(200, Sets.newHashSet(SRC), Selection.inspectMethodBody(StopWords.of(StopWords.ENGLISH, StopWords.JAVA)));
 
     assertEquals(concepts.size(), expected.size());
 
@@ -177,7 +177,7 @@ public class TypicalityTest {
     final Set<Source> files = collectJavaFilesInResources().stream()
       .map(Sources::from).collect(Collectors.toSet());
 
-    final List<Word> concepts = Selection.selects(200, files);
+    final List<Word> concepts = Selection.selects(200, files, Selection.inspectMethodBody(StopWords.of(StopWords.ENGLISH, StopWords.JAVA)));
 
     assertThat(concepts.isEmpty(), is(false));
 

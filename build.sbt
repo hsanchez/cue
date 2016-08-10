@@ -44,6 +44,7 @@ libraryDependencies ++= Seq(
     "com.novocode" % "junit-interface" % "0.11" % "test",
     "junit" % "junit" % "4.12",
     "com.github.rvesse" % "airline" % "2.1.0",
+    "com.google.code.gson" % "gson" % "2.7",
     "gov.nist.math" % "jama" % "1.0.3"
 )
 
