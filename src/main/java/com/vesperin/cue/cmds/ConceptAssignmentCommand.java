@@ -114,7 +114,9 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
         final Set<String> relevantSet = Sources.populate(corpus, allLines);
 
         final Selection.WordCollection wc = buildWordCollection(scope, relevantSet, StopWords.all());
-        final List<Word> wordList = selects(topK, corpusSet, wc);
+        final List<Word> wordList = selects(topK, corpusSet, wc).stream()
+          .sorted((a, b) -> Integer.compare(b.value(), a.value())).limit(topK)
+          .collect(Collectors.toList());
 
         System.out.println("[INFO]: Collected " + wordList.size() + " words: " + stopwatch);
 
@@ -156,7 +158,7 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
           final List<Word> words = selects(corpusSet, Selection.inspectClassName(SW)).stream()
             .filter(w -> !StopWords.isStopWord(SW, w.element()))
-            .collect(Collectors.toList());
+            .sorted((a, b) -> Integer.compare(b.value(), a.value())).limit(topK).collect(Collectors.toList());
 
           System.out.println("[INFO]: Selected relevant words:  " + stopwatch);
 
