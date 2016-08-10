@@ -156,7 +156,9 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
           final Set<StopWords> SW = updatedStopWords(target);
           System.out.println("[INFO]: Updated stopwords:  " + stopwatch);
 
-          final List<Word> words = selects(corpusSet, Selection.inspectClassName(SW)).stream()
+          final Selection.WordCollection wc = wordCollection(scope, Collections.emptySet(), SW);
+
+          final List<Word> words = selects(corpusSet, wc).stream()
             .filter(w -> !StopWords.isStopWord(SW, w.element()))
             .sorted((a, b) -> Integer.compare(b.value(), a.value())).limit(topK).collect(Collectors.toList());
 
