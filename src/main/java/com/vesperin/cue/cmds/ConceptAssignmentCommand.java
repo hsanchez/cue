@@ -44,7 +44,7 @@ import static java.nio.file.StandardOpenOption.CREATE;
 @SuppressWarnings("FieldCanBeLocal")
 public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
-  private static final String MAP_SET_CLUSTERS_NAME  = "clusters.txt";
+  private static final String MAP_SET_CLUSTERS_NAME  = "clusters.json";
 
   @Inject HelpOption<TypicalityAnalysisCommand> help;
 
@@ -63,7 +63,7 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
   @Option(name = {"-s", "--scope"}, description = "search scope: 0 -> classname (default); 1 -> method name; 2 -> method body.")
   private int scope = 0;
 
-  @Option(name = {"-o", "--onscreen"}, description = "print results on screen.")
+  @Option(name = {"-o", "--onscreen"}, description = "displays results on screen.")
   private boolean onScreen = false;
 
   @Option(name = {"-m", "--map"}, description = "create [types]->[words] mappings.")
