@@ -15,10 +15,11 @@ import com.vesperin.text.Grouping.Group;
 import com.vesperin.text.Grouping.Groups;
 import com.vesperin.text.Index;
 import com.vesperin.text.Query;
-import com.vesperin.text.Query.Result;
 import com.vesperin.text.Selection;
 import com.vesperin.text.Selection.Word;
+import com.vesperin.text.nouns.Noun;
 import com.vesperin.text.spelling.StopWords;
+import com.vesperin.text.utils.Strings;
 
 import javax.inject.Inject;
 import java.nio.file.Files;
@@ -28,14 +29,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.vesperin.text.Selection.Document;
 import static com.vesperin.text.Selection.selects;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
+import static java.util.stream.Collectors.toConcurrentMap;
 
 /**
  * @author Huascar Sanchez
@@ -184,8 +189,8 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
               final Groups regroups = Grouping.formDocGroups(eachGroup, cap);
               for(Group regroup : regroups){
                 final List<Document> ds = Group.items(regroup, Document.class);
-                final Result r = Query.types(ds, index);
-                final List<String> resultSet = Result.items(r, Word.class).stream().map(Word::element).collect(Collectors.toList());
+                final Query.Result qr = Query.labels(ds, SW);
+                final List<String> resultSet = Query.Result.items(qr, String.class);
                 final List<String> names     = Document.names(ds);
 
                 System.out.print(".");
@@ -198,13 +203,11 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
             final ResultPackage resultPackage = new ResultPackage(mappings);
 
-
+            final Gson gson = new GsonBuilder().setPrettyPrinting().create();
             if(onScreen){
-              final Gson gson = new GsonBuilder().setPrettyPrinting().create();
               System.out.println(gson.toJson(resultPackage));
               System.out.println("[INFO]: Printed file " + MAP_SET_CLUSTERS_NAME + " to screen: " + stopwatch);
             } else {
-              final Gson gson = new Gson();
               Path newFile = Paths.get(MAP_SET_CLUSTERS_NAME);
               Files.deleteIfExists(newFile);
 
@@ -237,9 +240,38 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
     return 0;
   }
 
+  private static List<String> findLabels(final List<Document> documents, Set<StopWords> stopWords){
+
+    // we don't accept plurals and stop words
+    final List<String> allStrings = documents.stream()
+      .flatMap(s -> Arrays.asList(Strings.splits(s.shortName())).stream())
+      .map(s -> Noun.get().isPlural(s) ? Noun.get().singularOf(s) : s)
+      .filter(s -> !StopWords.isStopWord(stopWords, s))
+      .collect(Collectors.toList());
+
+    // frequency calculation
+    final Map<String, Integer> scores = allStrings.stream()
+      .collect(toConcurrentMap(w -> w.toLowerCase(Locale.ENGLISH), w -> 1, Integer::sum));
+
+    // sort entries in ascending order
+    Stream<Map.Entry<String, Integer>> firstPass = scores.entrySet().stream()
+      .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+
+    // if we are dealing with multiple documents, filter words
+    // whose frequency is 1
+    if(documents.size() > 1){
+      firstPass = firstPass.filter(e -> e.getValue() > 1);
+    }
+
+
+    return firstPass.map(Map.Entry::getKey)
+      .filter(s -> s.length() > 3)
+      .collect(Collectors.toList());
+  }
+
   private static Set<StopWords> updatedStopWords(String target){
     final List<String> general = generalUpdate(target);
-    final List<String> java    = Arrays.asList("scala", "get", "max", "message", "buffered");
+    final List<String> java    = Arrays.asList("scala", "get", "max", "message", "buffered", "comparison");
 
     return StopWords.update(Collections.emptyList(), java, general);
   }
@@ -276,20 +308,20 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
   private static List<String> generalUpdate(String target){
     return Arrays.asList(Paths.get(target).getFileName().toString(),
-      "released", "initializers",
+      "released", "initializers", "narrow",
       "frustum", "automated", "per",
-      "stored", "zero", "qualified",
-      "cleanup", "normalize", "simple",
+      "stored", "zero", "qualified", "glsl",
+      "cleanup", "normalize", "simple", "logic",
       "value", "threading", "destructor",
-      "damping", "joystick", "matrixf",
+      "damping", "joystick", "matrixf", "app", "half",
       "aassert", "technique", "iassert",
-      "universally", "anim", "mutex", "minkowski",
-      "heightfield", "ragdoll", "influencer",
-      "stat", "dummy", "touch", "probably",
+      "universally", "anim", "mutex", "minkowski", "closest", "store",
+      "heightfield", "ragdoll", "influencer", "generation",
+      "stat", "dummy", "touch", "probably", "datum",
       "profiler","stat","pass","compact","dyn"
       ,"mikk","fly","criterium","broad","xy"
       ,"kerning","csetjmp","ring","ye","fbo"
-      ,"daabbc","mixer","guice","bayazit","cmath"
+      ,"daabbc","mixer","guice","bayazit","cmath", "constrained"
       ,"smart","dpu","daabb","cstdlib","fake","cstdio"
       ,"prefiltered","stopwatch","endien","quick","nano"
       ,"wrapped","cstdarg","statistic","billboard","ctype"

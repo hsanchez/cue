@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.vesperin.cue.utils.AstUtils.methodName;
-import static com.vesperin.text.utils.Similarity.similarityScore;
+import static com.vesperin.text.utils.Similarity.editDistanceScore;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -285,7 +285,7 @@ public interface Typicality {
   }
 
   static float score(Source a, Source b, Map<Source, String> summaries){
-    return similarityScore(
+    return editDistanceScore(
       summaries.get(a), summaries.get(b)
     );
   }
@@ -458,7 +458,7 @@ public interface Typicality {
     }
 
     static double score(Feature<String> a, Feature<String> b){
-      return similarityScore(a.get(), b.get());
+      return editDistanceScore(a.get(), b.get());
     }
 
     @Override public String toString() {

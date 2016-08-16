@@ -192,8 +192,8 @@ public class TypicalityTest {
 
     assertThat(
       Floats.compare(
-        Similarity.similarityScore("text", "txt"),
-        Similarity.similarityScore("txt", "text")
+        Similarity.editDistanceScore("text", "txt"),
+        Similarity.editDistanceScore("txt", "text")
       ) == 0, is(true));
   }
 }
