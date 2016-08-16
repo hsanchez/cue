@@ -11,8 +11,6 @@ import java.util.Objects;
  * @author Huascar Sanchez
  */
 class CodeSegment extends AbstractSegment implements Segment {
-
-
   private double weight;
   private double benefit;
 
@@ -23,7 +21,7 @@ class CodeSegment extends AbstractSegment implements Segment {
    *
    * @param data the ASTNode object.
    */
-  CodeSegment(ASTNode data){
+  private CodeSegment(ASTNode data){
     this(
       Objects.requireNonNull(data),
       calculateNumberOfLines(data),

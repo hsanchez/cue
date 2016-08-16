@@ -2166,19 +2166,19 @@ Injector[bindings=[Key[type=com.google.inject.Injector, annotation=[none]]=Bindi
 
 ngImpl[key=Key[type=com.google.inject.Injector, annotation=[none]], source=com.g
 
-oogle.inject.Guice.createInjector(Guice.java:75), provider=Provider<Injector>],
+oogle.inject.Guice.createInjector(Guice.java:75), filter=Provider<Injector>],
 
 Key[type=java.util.logging.Logger, annotation=[none]]=BindingImpl[key=Key[type=j
 
 ava.util.logging.Logger, annotation=[none]], source=com.google.inject.Guice.crea
 
-teInjector(Guice.java:75), provider=Provider<Logger>], Key[type=com.google.injec
+teInjector(Guice.java:75), filter=Provider<Logger>], Key[type=com.google.injec
 
 t.Stage, annotation=[none]]=BindingImpl[key=Key[type=com.google.inject.Stage, an
 
 notation=[none]], source=com.google.inject.Guice.createInjector(Guice.java:75),
 
-provider=ConstantFactory[value=DEVELOPMENT]]]]
+filter=ConstantFactory[value=DEVELOPMENT]]]]
 
 Here's a look at my DOS prompt, just in case you're into those types of things:
 
@@ -2193,4 +2193,3 @@ Tutorial 1 (This One): Getting Started with Google Guice: Environment Setup and 
 Tutorial 2: The Simplest IoC Example You've Ever Seen, with Google Guice
 
 Watch the Corresponding Tutorials on Environment Configuration and IoC with Spring 3.
-

@@ -4,9 +4,8 @@ import com.vesperin.base.Source;
 import com.vesperin.base.locations.Location;
 import com.vesperin.base.locations.Locations;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeSet;
@@ -26,25 +25,9 @@ public class SourceSelection implements Iterable<Location> {
 
   /**
    * Instantiates a new {@link SourceSelection}.
-   *
-   * @param code The {@link Source}
-   * @param startOffset The selection's starting offset
-   * @param endOffset The selection's ending offset
-   */
-  public SourceSelection(Source code, int startOffset, int endOffset){
-    this(firstLocation(Locations.createLocation(
-      code,
-      code.getContent(),
-      startOffset,
-      endOffset
-    )));
-  }
-
-  /**
-   * Instantiates a new {@link SourceSelection}.
    * @param locations The first set of locations defining a code selection.
    */
-  public SourceSelection(List<Location> locations){
+  public SourceSelection(Collection<Location> locations){
     this.selections  = new TreeSet<>();
 
     if(locations != null && !locations.isEmpty()){
@@ -55,14 +38,8 @@ public class SourceSelection implements Iterable<Location> {
   /**
    * Internal Constructor.
    */
-  SourceSelection(){
+  private SourceSelection(){
     this(null);
-  }
-
-  private static List<Location> firstLocation(Location location){
-    final List<Location> locations = new ArrayList<>();
-    locations.add(location);
-    return locations;
   }
 
   /**
@@ -98,41 +75,6 @@ public class SourceSelection implements Iterable<Location> {
     return selections.contains(location);
   }
 
-  /**
-   * Does the current code selection covers another location.
-   *
-   * @param location the other location.
-   * @return true if it covers it; false otherwise.
-   */
-  public boolean covers(Location location){
-    return Locations.covers(toLocation(), location);
-  }
-
-
-  /**
-   * Returns the smallest location in the selection greater than or equal to <tt>location</tt>.
-   * @return the smallest location in the set greater than or equal to <tt>location</tt>
-   * @param other the other location
-   * @throws NoSuchElementException if there is no such location
-   * @throws NullPointerException if <tt>location</tt> is <tt>null</tt>
-   */
-  public Location ceiling(Location other) {
-    if (other == null) {
-      throw new NullPointerException(
-        "called ceiling() with a null location"
-      );
-    }
-
-    Location k = selections.ceiling(other);
-    if (k == null) {
-      throw new NoSuchElementException(
-        "all locations are less than " + other
-      );
-    }
-
-    return k;
-  }
-
 
   /**
    * Removes the location from the set if the location is present.
@@ -166,31 +108,6 @@ public class SourceSelection implements Iterable<Location> {
     }
 
     return selections.first();
-  }
-
-
-  /**
-   * Returns the largest location in the selection less than or equal to <tt>location</tt>.
-   * @return the largest location in the selection less than or equal to <tt>location</tt>
-   * @param location the other location
-   * @throws NoSuchElementException if there is no such location
-   * @throws NullPointerException if <tt>location</tt> is <tt>null</tt>
-   */
-  public Location floor(Location location) {
-    if (location == null) {
-      throw new NullPointerException(
-        "called floor() with a null location"
-      );
-    }
-
-    Location k = selections.floor(location);
-    if (k == null) {
-      throw new NoSuchElementException(
-        "all keys are greater than " + location
-      );
-    }
-
-    return k;
   }
 
 

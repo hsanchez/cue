@@ -2,17 +2,54 @@ package com.vesperin.cue;
 
 import com.github.rvesse.airline.Cli;
 import com.github.rvesse.airline.builder.CliBuilder;
+import com.github.rvesse.airline.parser.errors.ParseException;
 import com.vesperin.cue.cmds.ConceptAssignmentCommand;
 import com.vesperin.cue.cmds.RepresentativeAnalysisCommand;
 import com.vesperin.cue.cmds.TypicalityAnalysisCommand;
 
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * @author Huascar Sanchez
  */
-public interface IntrospectorWithCli extends Introspector {
+public interface BasicCli {
+
+  static void main(String[] args) {
+    BasicCli.executeCli(creates(), args);
+  }
+
+  /**
+   * @return a new basic cli object.
+   */
+  static BasicCli creates(){
+    return new BasicCliImpl(new Console());
+  }
+
+  /**
+   * Executes the CLI of an Typicality object and its string arguments.
+   *
+   * @param introspector Typicality object.
+   * @param args the command arguments.
+   */
+  static void executeCli(BasicCli introspector, String[] args){
+    Objects.requireNonNull(introspector);
+    Objects.requireNonNull(args);
+
+    final Cli<CliCommand>  cueCli  = introspector.buildCli();
+    try {
+      final CliCommand cmd = cueCli.parse(args);
+      introspector.run(cmd);
+    } catch (ParseException e) {
+      System.err.println("Parser error: " + e.getMessage());
+    } catch (Throwable e) {
+      System.err.println("Unexpected error: " + e.getMessage());
+      e.printStackTrace(System.err);
+    }
+  }
 
   /**
    * Checks if all the expected number of arguments are non null.
@@ -63,7 +100,7 @@ public interface IntrospectorWithCli extends Introspector {
    * @param command CLI command
    * @return Runner's result.
    */
-  default Result run(CliCommand command) {
+  default Output run(CliCommand command) {
     return run(command, getCliRunner());
   }
 
@@ -73,7 +110,7 @@ public interface IntrospectorWithCli extends Introspector {
    * @param withRunner CLI's runner strategy.
    * @return Runner's result.
    */
-  default Result run(CliCommand command, Runner withRunner){
+  default Output run(CliCommand command, Runner withRunner){
     Objects.requireNonNull(withRunner);
     Objects.requireNonNull(command);
     return withRunner.run(command);
@@ -82,11 +119,11 @@ public interface IntrospectorWithCli extends Introspector {
   /**
    * Builds its own 'default' CLI.
    *
-   * @return the new Introspector's CLI
+   * @return the new Typicality's CLI
    */
   default Cli<CliCommand> buildCli(){
     return buildCli(Cli.<CliCommand>builder("cue")
-      .withDescription("Cue CLI")
+      .withDescription("Basic CLI")
       .withCommand(TypicalityAnalysisCommand.class)
       .withCommand(ConceptAssignmentCommand.class)
       .withCommand(RepresentativeAnalysisCommand.class)
@@ -126,13 +163,43 @@ public interface IntrospectorWithCli extends Introspector {
      * @param command CLI command.
      * @return output
      */
-    Result run(CliCommand command);
+    Output run(CliCommand command);
   }
 
   /**
    * Runner's result object.
    */
-  interface Result {
+  interface Output {
     @Override String toString();
+  }
+
+  class Console implements Runner {
+    @Override public Output run(CliCommand command) {
+      try {
+        final ExecutorService service = Executors.newSingleThreadExecutor();
+        final Future<Integer> result  = service.submit(command);
+        int exitCode = result.get();
+        System.out.println();
+        System.out.println("Exiting with Code " + exitCode);
+        System.exit(exitCode);
+      } catch (Throwable e) {
+        System.err.println("Command threw error: " + e.getMessage());
+        e.printStackTrace(System.err);
+      }
+
+      return null;
+    }
+  }
+
+  class BasicCliImpl implements BasicCli {
+    final Runner runner;
+
+    BasicCliImpl(Runner runner){
+      this.runner = runner;
+    }
+
+    @Override public Runner getCliRunner() {
+      return runner;
+    }
   }
 }

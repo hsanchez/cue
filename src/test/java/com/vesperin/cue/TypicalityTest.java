@@ -3,13 +3,19 @@ package com.vesperin.cue;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Floats;
 import com.vesperin.base.Source;
 import com.vesperin.cue.utils.IO;
-import com.vesperin.cue.utils.Similarity;
 import com.vesperin.cue.utils.Sources;
+import com.vesperin.text.Grouping;
+import com.vesperin.text.Grouping.Group;
+import com.vesperin.text.Grouping.Groups;
+import com.vesperin.text.Selection;
+import com.vesperin.text.Selection.Word;
+import com.vesperin.text.spelling.StopWords;
+import com.vesperin.text.utils.Similarity;
 import org.junit.Test;
 
 import java.io.File;
@@ -28,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author Huascar Sanchez
  */
-public class IntrospectorTest {
+public class TypicalityTest {
   private static final Source SRC = Source.from("Foo",
     Joiner.on("\n").join(
       ImmutableList.of(
@@ -59,55 +65,44 @@ public class IntrospectorTest {
     )
   );
 
+  @Test public void testConceptAnalysis() throws Exception {
+    Set<Source> set = ImmutableSet.of(Corpus.five(), Corpus.four(), Corpus.two());
+
+    try {
+      final List<Word> words = Selection.selects(100, set, Selection.inspectMethodBody(StopWords.of(StopWords.ENGLISH, StopWords.JAVA)));
+      final Groups groups = Grouping.formWordGroups(words);
+      final Group group = Iterables.get(groups, 0);
+
+      assertNotNull(group);
+
+    } catch (Throwable e){
+      System.out.println(e.getLocalizedMessage());
+    }
+  }
+
   @Test public void testCueBasic() throws Exception {
+
     final Set<String> expected = Sets.newHashSet(
-      "file", "create", "text", "process", "code", "configuration"
+      "println", "create", "text", "code", "configuration", "process"
     );
 
-    final List<String> concepts = Cue.newIntrospector().assignedConcepts(SRC).stream().sorted().collect(Collectors.toList());
+    final List<Word> concepts = Selection.selects(200, Sets.newHashSet(SRC), Selection.inspectMethodBody(StopWords.of(StopWords.ENGLISH, StopWords.JAVA)));
 
     assertEquals(concepts.size(), expected.size());
 
-    for(String each : concepts){
-      assertThat(expected.contains(each), is(true));
-    }
-
-    final List<String> concepts2 = Cue.newIntrospector().assignedConcepts(Lists.newArrayList(SRC)).stream()
-      .sorted().collect(Collectors.toList());
-
-    assertEquals(concepts, concepts2);
-  }
-
-  @Test public void testCueCodeRegion() throws Exception {
-    final Set<String> names = Sets.newHashSet("processFile");
-
-    final Set<String> expected = Sets.newHashSet(
-      "file", "create", "text", "code", "configuration", "process"
-    );
-
-    final Set<String> concepts = Cue.newIntrospector().assignedConcepts(SRC, names).stream()
-      .collect(Collectors.toSet());
-    assertThat(!concepts.isEmpty(), is(true));
-
-    assertEquals(expected, concepts);
-
-    final Introspector introspector = Cue.newIntrospector();
-    final Set<String> c = introspector.assignedConcepts(SRC, names).stream()
-      .collect(Collectors.toSet());
-
-    assertEquals(expected, c);
-
-    for(String each : concepts){
-      assertThat(expected.contains(each), is(true));
+    for( Word each : concepts){
+      assertTrue(expected.contains(each.element()));
     }
 
   }
+
 
   @Test public void testTypicalityScoreWithIntrospector() throws Exception {
 
-    final Set<String>   relevant  = new HashSet<>();
-    final Set<Source>   corpusSet = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final Source        typical   = Cue.newIntrospector().typicalityQuery(1, corpusSet, relevant).stream()
+    final Set<String>   relevant    = new HashSet<>();
+    final Set<Source>   corpusSet   = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
+    final Typicality    typicality  = Typicality.creates();
+    final Source        typical     = typicality.typicalOf(1, corpusSet, relevant).stream()
       .findFirst().orElse(null);
 
     assertNotNull(typical);
@@ -121,7 +116,7 @@ public class IntrospectorTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final List<Source> representative = Cue.newIntrospector().representativeTypicalityQuery(files, relevant);
+    final List<Source> representative = Typicality.creates().bestOf(files, relevant);
 
     assertTrue(!representative.isEmpty());
   }
@@ -133,10 +128,10 @@ public class IntrospectorTest {
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortSet");
 
-    final Introspector introspector   = Cue.newIntrospector();
+    final Typicality typicality = Typicality.creates();
 
-    final List<Source> represent  = introspector.representativeTypicalityQuery(files, relevant);
-    final List<Source> typical    = introspector.typicalityQuery(represent.size(), files, relevant);
+    final List<Source> represent  = typicality.bestOf(files, relevant);
+    final List<Source> typical    = typicality.typicalOf(represent.size(), files, relevant);
 
     assertEquals(represent.size(), typical.size());
 
@@ -145,7 +140,7 @@ public class IntrospectorTest {
   @Test public void testTypicalityScore() throws Exception {
     final Set<String>   relevant     = new HashSet<>();
     final Set<Source>   corpusSet    = Corpus.getSourceFiles().stream().collect(Collectors.toSet());
-    final List<Source>  typical      = Cue.newIntrospector().typicalityQuery(1, corpusSet, relevant);
+    final List<Source>  typical      = Typicality.creates().typicalOf(1, corpusSet, relevant);
     final Source        mostTypical  = typical.stream().findFirst().orElse(null);
 
     assertNotNull(mostTypical);
@@ -161,7 +156,7 @@ public class IntrospectorTest {
 
     final Set<String> relevant = new HashSet<>();
 
-    final List<Source> typical = Cue.newIntrospector().typicalityQuery(1, files, relevant);
+    final List<Source> typical = Typicality.creates().typicalOf(1, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
@@ -173,25 +168,23 @@ public class IntrospectorTest {
     assertThat(!files.isEmpty(), is(true));
 
     final Set<String> relevant = ImmutableSet.of("sort", "sortStack", "sortSet");
-    final List<Source> typical = Cue.newIntrospector().typicalityQuery(1, 0.3, files, relevant);
+    final List<Source> typical = Typicality.creates().typicalOf(1, 0.3, files, relevant);
 
     assertThat(!typical.isEmpty(), is(true));
   }
 
   @Test public void testMostFrequentConcept() throws Exception {
-    final List<Source> files = collectJavaFilesInResources().stream()
-      .map(Sources::from).collect(Collectors.toList());
+    final Set<Source> files = collectJavaFilesInResources().stream()
+      .map(Sources::from).collect(Collectors.toSet());
 
-    final List<String> concepts = Cue.newIntrospector().assignedConcepts(files);
-    final List<String> c = Cue.newIntrospector().assignedConcepts(files);
+    final List<Word> concepts = Selection.selects(200, files, Selection.inspectMethodBody(StopWords.of(StopWords.ENGLISH, StopWords.JAVA)));
 
     assertThat(concepts.isEmpty(), is(false));
-    assertThat(c.isEmpty(), is(false));
 
   }
 
   private static List<File> collectJavaFilesInResources() {
-    return IO.collectFiles(Paths.get(IntrospectorTest.class.getResource("/").getPath()), "java");
+    return IO.collectFiles(Paths.get(TypicalityTest.class.getResource("/").getPath()), "java");
   }
 
 
@@ -199,14 +192,8 @@ public class IntrospectorTest {
 
     assertThat(
       Floats.compare(
-        Similarity.similarityScore("text", "txt"),
-        Similarity.similarityScore("txt", "text")
-      ) == 0, is(true));
-
-    assertThat(
-      Floats.compare(
-        Similarity.normalizeDistance("text", "txt"),
-        Similarity.normalizeDistance("txt", "text")
+        Similarity.editDistanceScore("text", "txt"),
+        Similarity.editDistanceScore("txt", "text")
       ) == 0, is(true));
   }
 }

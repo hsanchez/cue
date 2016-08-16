@@ -2,6 +2,7 @@ package com.vesperin.cue.utils;
 
 import com.google.common.collect.ImmutableList;
 import com.vesperin.base.utils.Jdt;
+import com.vesperin.base.visitors.SkeletalVisitor;
 import com.vesperin.cue.segment.LabelVisitor;
 import com.vesperin.cue.segment.LinkedNodesVisitor;
 import org.eclipse.jdt.core.compiler.IProblem;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Huascar Sanchez
@@ -120,6 +122,13 @@ public class AstUtils {
     return result;
   }
 
+  public static int methodCount(ASTNode node){
+    final MethodCount counter = new MethodCount();
+    node.accept(counter);
+
+    return counter.numberOfMethods();
+  }
+
 
   private static int getProblemKind(IProblem problem) {
     switch (problem.getID()) {
@@ -193,5 +202,18 @@ public class AstUtils {
     }
 
     return 0;
+  }
+
+
+  private static class MethodCount extends SkeletalVisitor {
+    private final AtomicInteger counter = new AtomicInteger(0);
+    @Override public void endVisit(MethodDeclaration methodDeclaration) {
+      counter.incrementAndGet();
+      super.endVisit(methodDeclaration);
+    }
+
+    public int numberOfMethods(){
+      return counter.get();
+    }
   }
 }

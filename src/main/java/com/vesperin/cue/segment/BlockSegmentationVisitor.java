@@ -6,15 +6,7 @@ import com.vesperin.base.locations.Locations;
 import com.vesperin.base.utils.Jdt;
 import com.vesperin.base.visitors.ASTVisitorWithHierarchicalWalk;
 import com.vesperin.cue.utils.AstUtils;
-import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.IMethodBinding;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SimpleType;
-import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.*;
 
 import java.util.HashSet;
 import java.util.List;
@@ -81,9 +73,13 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
       final ASTNode parentBlock = findParentBlock(node);
       if(parentBlock == null){
 
+        final boolean isAbstract = Modifier.isAbstract(node.getModifiers());
+        if(isAbstract) return false;
+
         final Optional<ASTNode> firstBlock = findFirstBlock(node);
-        if(!firstBlock.isPresent()){
-          throw new IllegalArgumentException("A method declaration must have a block statement");
+        if(!firstBlock.isPresent() ){
+          System.out.println("Found a method declaration with no body");
+          return false;
         }
 
         final ASTNode firstBlockNode = firstBlock.get();
@@ -142,17 +138,17 @@ public class BlockSegmentationVisitor extends ASTVisitorWithHierarchicalWalk {
         if(!Objects.isNull(typeDeclaration)){
 
           final ASTNode parentBlock = findParentBlock(node);
+          if(!Objects.isNull(parentBlock)){
+            final BlockVisitor blockVisitor = new BlockVisitor();
+            node.accept(blockVisitor);
 
-          Objects.requireNonNull(parentBlock);
+            for(Block each : blockVisitor.getCodeBlocks()){
+              linkNodes(parentBlock, each);
 
-          final BlockVisitor blockVisitor = new BlockVisitor();
-          node.accept(blockVisitor);
-
-          for(Block each : blockVisitor.getCodeBlocks()){
-            linkNodes(parentBlock, each);
-
-            catchCodeBlock(each);
+              catchCodeBlock(each);
+            }
           }
+
         }
       }
 
