@@ -74,6 +74,12 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
   @Option(name = {"-m", "--map"}, description = "create [types]->[words] mappings.")
   private boolean map = false;
 
+  @Option(name = {"-mst", "--kruskal"}, description = "Use Kruskal clustering (no vectorspace).")
+  private boolean kruskal = false;
+
+//  @Option(name = {"-p", "--pruning"}, description = "Typicality-based Cluster pruning.")
+//  private boolean pruning = false;
+
 
   @Override public Integer call() throws Exception {
     if(!help.showHelpIfRequested()){
@@ -97,13 +103,19 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
         realScope = scope;
       }
 
-      return conceptAssignment(directory, from, topK, realCap, realScope, onScreen, map);
+      return conceptAssignment(
+        directory, from, topK, realCap,
+        realScope, onScreen, map,
+        kruskal
+      );
     }
 
     return 0;
   }
 
-  private static int conceptAssignment(String target, String from, int topK, int cap, int scope, boolean onScreen, boolean map) {
+  private static int conceptAssignment(String target, String from,
+          int topK, int cap, int scope, boolean onScreen,
+          boolean map, boolean kruskal) {
 
     final List<Source> corpus = new ArrayList<>();
     final Stopwatch stopwatch = Stopwatch.createStarted();
@@ -179,22 +191,46 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
             }
 
           } else {
-            final Groups  groups = Grouping.formDocGroups(words);
+            final Groups  groups = kruskal ? Grouping.reformDocGroups(words) : Grouping.formDocGroups(words);
             final Index   index  = groups.index();
             System.out.println("[INFO]: Formed groups-of-types based on relevant words:  " + stopwatch);
 
+            final Set<Word> wordSet = words.stream().collect(Collectors.toSet());
             final List<Mapping> mappings = new ArrayList<>();
+
+//            if(pruning) {
+//              System.out.println("[INFO]: Pruning each cluster");
+//            }
 
             for(Group eachGroup : groups){
               final Groups regroups = Grouping.formDocGroups(eachGroup, cap);
+
               for(Group regroup : regroups){
                 final List<Document> ds = Group.items(regroup, Document.class);
-                final Query.Result qr = Query.labels(ds, SW);
-                final List<String> resultSet = Query.Result.items(qr, String.class);
-                final List<String> names     = Document.names(ds);
+
+//                if(pruning){
+//                  final Grouping.Group  group  = new Grouping.BasicGroup();
+//                  ds.forEach(group::add);
+//
+//                  final Grouping.Groups refinedGroups = Grouping.refine(Grouping.Groups.of(Collections.singletonList(group)));
+//                  final Group refinedGroup = refinedGroups.groupList().get(0);
+//                  ds = Group.items(refinedGroup, Document.class);
+//                }
+
+
+                final Query.Result qr  = Query.labels(ds, SW);
+                final Query.Result qr2 = Query.types(ds, index);
+
+                final List<String> resultSet  = Query.Result.items(qr, String.class);
+                final List<String> resultSet2 = Query.Result.items(qr2, Word.class).stream()
+                  .filter(wordSet::contains)
+                  .map(Word::element)
+                  .collect(Collectors.toList());
+
+                final List<String> names      = Document.names(ds);
 
                 System.out.print(".");
-                mappings.add(new Mapping(names, resultSet));
+                mappings.add(new Mapping(names, resultSet, resultSet2));
               }
             }
 
@@ -350,10 +386,12 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
   private static class Mapping {
     List<String> types;
     List<String> labels;
+    List<String> alternative;
 
-    Mapping(List<String> types, List<String> labels){
+    Mapping(List<String> types, List<String> labels, List<String> alternative){
       this.labels = labels;
       this.types = types;
+      this.alternative = alternative;
     }
 
     public List<String> getTypes() {
@@ -370,6 +408,14 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
     public void setLabels(List<String> labels) {
       this.labels = labels;
+    }
+
+    public List<String> getAlternative() {
+      return alternative;
+    }
+
+    public void setAlternative(List<String> alternative) {
+      this.alternative = alternative;
     }
   }
 
