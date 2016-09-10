@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Floats;
+import com.google.common.primitives.Doubles;
 import com.vesperin.base.Source;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
@@ -191,7 +191,7 @@ public class TypicalityTest {
   @Test public void testCommutativePropertyOfSimilarity() throws Exception {
 
     assertThat(
-      Floats.compare(
+      Doubles.compare(
         Similarity.editDistanceScore("text", "txt"),
         Similarity.editDistanceScore("txt", "text")
       ) == 0, is(true));

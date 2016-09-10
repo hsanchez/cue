@@ -284,7 +284,7 @@ public interface Typicality {
     return selection.toCode();
   }
 
-  static float score(Source a, Source b, Map<Source, String> summaries){
+  static double score(Source a, Source b, Map<Source, String> summaries){
     return editDistanceScore(
       summaries.get(a), summaries.get(b)
     );
