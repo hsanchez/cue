@@ -78,8 +78,7 @@ public interface Typicality {
   }
 
   static Comparator<Map.Entry<Source, List<Source>>> reverseOrder(){
-    return (entry1, entry2) ->
-      Integer.compare(entry1.getValue().size(), entry2.getValue().size());
+    return Comparator.comparingInt(entry -> entry.getValue().size());
   }
 
   /**

@@ -40,7 +40,7 @@ test in assembly := {}
 // library dependencies. (organization name) % (project name) % (version)
 libraryDependencies ++= Seq(
    "org.eclipse.jdt" % "org.eclipse.jdt.core" % "3.10.0",
-    "com.google.guava" % "guava" % "19.0",
+    "com.google.guava" % "guava" % "20.0",
     "com.novocode" % "junit-interface" % "0.11" % "test",
     "junit" % "junit" % "4.12",
     "com.github.rvesse" % "airline" % "2.1.0",
@@ -52,7 +52,7 @@ assemblyExcludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
   val excludes = Set(
     "junit-4.12.jar",
     "hamcrest-core-1.3.jar",
-    "junit-interface-0.11.jar",
+    "junit-interface-0.11.jar"/*,
     "guava-19.0.jar",
     "org.eclipse.core.commands-3.6.0.jar",
     "org.eclipse.core.contenttype-3.4.100.jar",
@@ -69,7 +69,7 @@ assemblyExcludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
     "org.eclipse.text-3.5.101.jar",
     "airline-io-2.1.0.jar",
     "airline-2.1.0.jar",
-    "jama-1.0.3.jar"
+    "jama-1.0.3.jar"*/
   )
 
   cp filter { jar => excludes(jar.data.getName) }

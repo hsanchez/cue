@@ -1,0 +1,455 @@
+{
+  "mappings": [
+    {
+      "types": [
+        "org.jbox2d.particle.ParticleColor"
+      ],
+      "labels": [
+        "color;particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.shadow.DirectionalLightShadowRenderer"
+      ],
+      "labels": [
+        "directional;shadow;renderer;light"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.light.DirectionalLight"
+      ],
+      "labels": [
+        "directional;light"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.animation.CompactQuaternionArray"
+      ],
+      "labels": [
+        "compact;quaternion;array"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.ogre.MaterialLoader",
+        "com.jme3.scene.plugins.ogre.matext.MaterialExtensionLoader",
+        "com.jme3.terrain.geomipmap.TerrainGridTileLoader",
+        "com.jme3.scene.plugins.ogre.SceneMaterialLoader"
+      ],
+      "labels": [
+        "material;loader"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.util.MaterialDebugAppState"
+      ],
+      "labels": [
+        "debug;material;state;app"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.picking.BresenhamTerrainPicker",
+        "com.jme3.terrain.geomipmap.picking.TerrainPicker"
+      ],
+      "labels": [
+        "terrain"
+      ]
+    },
+    {
+      "types": [
+        "jme3tools.navigation.Coordinate"
+      ],
+      "labels": [
+        "coordinate"
+      ]
+    },
+    {
+      "types": [
+        "org.dyn4j.BinarySearchTreeSearchCriteria",
+        "org.dyn4j.geometry.decompose.ClosestEdgeToVertexSearchCriteria"
+      ],
+      "labels": [
+        "criteria;search"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.effect.influencers.EmptyParticleInfluencer",
+        "com.jme3.effect.influencers.DefaultParticleInfluencer",
+        "com.jme3.effect.influencers.ParticleInfluencer",
+        "com.jme3.effect.influencers.RadialParticleInfluencer",
+        "com.jme3.effect.influencers.NewtonianParticleInfluencer"
+      ],
+      "labels": [
+        "influencer;particle"
+      ]
+    },
+    {
+      "types": [
+        "org.dyn4j.sandbox.panels.IsoscelesTrianglePanel",
+        "org.dyn4j.sandbox.panels.EquilateralTrianglePanel",
+        "org.dyn4j.sandbox.panels.RightTrianglePanel"
+      ],
+      "labels": [
+        "triangle;panel"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.callbacks.ParticleQueryCallback",
+        "org.jbox2d.callbacks.ParticleRaycastCallback",
+        "com.jme3.bullet.util.BufferedTriangleCallback"
+      ],
+      "labels": [
+        "particle;callback"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.particle.ParticleType",
+        "org.jbox2d.testbed.tests.ParticleTypes",
+        "org.jbox2d.particle.ParticleGroupType"
+      ],
+      "labels": [
+        "particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.effect.Particle",
+        "org.jbox2d.testbed.tests.DrawingParticles",
+        "org.jbox2d.testbed.tests.Particles"
+      ],
+      "labels": [
+        "particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.material.MaterialList"
+      ],
+      "labels": [
+        "list;material"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.callbacks.ParticleDestructionListener",
+        "com.jme3.terrain.geomipmap.TerrainGridListener"
+      ],
+      "labels": [
+        "listener"
+      ]
+    },
+    {
+      "types": [
+        "jme3test.post.LightScatteringUI"
+      ],
+      "labels": [
+        "scattering;light"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.particle.ParticleDef",
+        "com.jme3.material.MaterialDef",
+        "org.jbox2d.particle.ParticleGroupDef"
+      ],
+      "labels": [
+        "particle;def"
+      ]
+    },
+    {
+      "types": [
+        "com.flowpowered.react.collision.narrowphase.EPA.TrianglesStore"
+      ],
+      "labels": [
+        "store;triangles"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.picking.BresenhamYUpGridTracer",
+        "com.jme3.renderer.opengl.GLTracer"
+      ],
+      "labels": [
+        "tracer"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.particle.ParticleGroup"
+      ],
+      "labels": [
+        "group;particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.blender.materials.MaterialContext"
+      ],
+      "labels": [
+        "material;context"
+      ]
+    },
+    {
+      "types": [
+        "org.dyn4j.sandbox.tests.CoordinateShift"
+      ],
+      "labels": [
+        "coordinate;shift"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.particle.ParticleContact",
+        "org.jbox2d.particle.ParticleBodyContact"
+      ],
+      "labels": [
+        "particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.UpdatedTerrainPatch",
+        "com.jme3.terrain.geomipmap.TerrainPatch"
+      ],
+      "labels": [
+        "terrain"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.TerrainQuad"
+      ],
+      "labels": [
+        "terrain;quad"
+      ]
+    },
+    {
+      "types": [
+        "org.dyn4j.collision.narrowphase.Penetration"
+      ],
+      "labels": [
+        "penetration"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.effect.ParticlePointMesh",
+        "com.jme3.effect.ParticleTriMesh",
+        "com.jme3.effect.ParticleMesh"
+      ],
+      "labels": [
+        "mesh;particle"
+      ]
+    },
+    {
+      "types": [
+        "jme3test.helloworld.HelloTerrain",
+        "com.jme3.terrain.Terrain",
+        "org.dyn4j.samples.LinkTerrain"
+      ],
+      "labels": [
+        "terrain"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.post.filters.LightScatteringFilter",
+        "com.jme3.shadow.DirectionalLightShadowFilter"
+      ],
+      "labels": [
+        "light;filter"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.ogre.matext.MaterialExtensionSet"
+      ],
+      "labels": [
+        "material;set;extension"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.TerrainGrid"
+      ],
+      "labels": [
+        "grid;terrain"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.ogre.matext.OgreMaterialKey",
+        "com.jme3.asset.MaterialKey"
+      ],
+      "labels": [
+        "material"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.blender.particles.ParticlesHelper",
+        "com.jme3.scene.plugins.blender.materials.MaterialHelper"
+      ],
+      "labels": [
+        "helper"
+      ]
+    },
+    {
+      "types": [
+        "org.dyn4j.collision.narrowphase.MinkowskiPenetrationSolver"
+      ],
+      "labels": [
+        "minkowski;penetration;solver"
+      ]
+    },
+    {
+      "types": [
+        "jme3test.helloworld.HelloTerrainCollision"
+      ],
+      "labels": [
+        "collision;terrain;hello"
+      ]
+    },
+    {
+      "types": [
+        "org.jbox2d.particle.ParticleSystem"
+      ],
+      "labels": [
+        "system;particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.blender.textures.UVCoordinatesGenerator"
+      ],
+      "labels": [
+        "generator;coordinates"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.material.MaterialProcessor"
+      ],
+      "labels": [
+        "material;processor"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.TerrainGridLodControl",
+        "com.jme3.terrain.geomipmap.TerrainLodControl",
+        "com.jme3.terrain.geomipmap.MultiTerrainLodControl"
+      ],
+      "labels": [
+        "control;lod"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.blender.modifiers.ParticlesModifier"
+      ],
+      "labels": [
+        "particles;modifier"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.collision.bih.TriangleAxisComparator",
+        "com.jme3.renderer.queue.TransparentComparator"
+      ],
+      "labels": [
+        "comparator"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.ogre.matext.MaterialExtension"
+      ],
+      "labels": [
+        "material;extension"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.heightmap.ParticleDepositionHeightMap"
+      ],
+      "labels": [
+        "deposition;map;height;particle"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.blender.math.DQuaternion",
+        "com.flowpowered.react.math.Quaternion",
+        "com.jme3.math.Quaternion"
+      ],
+      "labels": [
+        "quaternion"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.terrain.geomipmap.picking.TerrainPickData"
+      ],
+      "labels": [
+        "data;terrain;pick"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.blender.file.Pointer"
+      ],
+      "labels": [
+        "pointer"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.scene.plugins.fbx.material.FbxMaterialProperties"
+      ],
+      "labels": [
+        "property;material"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.collision.bih.BIHTriangle",
+        "com.flowpowered.react.collision.narrowphase.EPA.TriangleEPA",
+        "com.jme3.math.AbstractTriangle",
+        "org.dyn4j.geometry.Triangle",
+        "com.jme3.math.Triangle"
+      ],
+      "labels": [
+        "triangle"
+      ]
+    },
+    {
+      "types": [
+        "jme3test.helloworld.HelloMaterial",
+        "com.jme3.scene.plugins.fbx.objects.FbxMaterial",
+        "com.jme3.material.Material",
+        "com.jme3.scene.plugins.fbx.material.FbxMaterial",
+        "com.flowpowered.react.engine.Material"
+      ],
+      "labels": [
+        "material"
+      ]
+    },
+    {
+      "types": [
+        "com.jme3.effect.ParticleEmitter"
+      ],
+      "labels": [
+        "emitter;particle"
+      ]
+    }
+  ]
+}

@@ -4,22 +4,27 @@ import com.github.rvesse.airline.HelpOption;
 import com.github.rvesse.airline.annotations.Command;
 import com.github.rvesse.airline.annotations.Option;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Iterables;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.vesperin.base.Source;
 import com.vesperin.cue.BasicCli;
 import com.vesperin.cue.utils.IO;
 import com.vesperin.cue.utils.Sources;
+import com.vesperin.text.Corpus;
 import com.vesperin.text.Grouping;
 import com.vesperin.text.Grouping.Group;
 import com.vesperin.text.Grouping.Groups;
-import com.vesperin.text.Index;
-import com.vesperin.text.Query;
+import com.vesperin.text.Introspector;
+import com.vesperin.text.Recommend;
 import com.vesperin.text.Selection;
 import com.vesperin.text.Selection.Word;
-import com.vesperin.text.nouns.Noun;
 import com.vesperin.text.spelling.StopWords;
-import com.vesperin.text.utils.Strings;
+import com.vesperin.text.spi.BasicExecutionMonitor;
+import com.vesperin.text.spi.ExecutionMonitor;
+import com.vesperin.text.tokenizers.Tokenizers;
+import com.vesperin.text.tokenizers.WordsTokenizer;
+import com.vesperin.text.utils.Prints;
 
 import javax.inject.Inject;
 import java.nio.file.Files;
@@ -28,19 +33,17 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.vesperin.text.Selection.Document;
-import static com.vesperin.text.Selection.selects;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
-import static java.util.stream.Collectors.toConcurrentMap;
 
 /**
  * @author Huascar Sanchez
@@ -50,35 +53,30 @@ import static java.util.stream.Collectors.toConcurrentMap;
 public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
   private static final String MAP_SET_CLUSTERS_NAME  = "clusters.json";
+  private static final String MAP_SET_WORDS_NAME     = "words.json";
 
   @Inject HelpOption<TypicalityAnalysisCommand> help;
 
-  @Option(name = {"-d", "--directory"}, arity = 1, description = "extracts concepts from target directory.")
+  @Option(name = {"-d", "--directory"}, arity = 1, description = "Directory from where concepts will be extracted.")
   private String directory = null;
 
-  @Option(name = {"-k", "--topk"}, description = "k most typical source code.")
+  @Option(name = {"-k", "--topk"}, description = "Number of words to collect")
   private int topK = 10;
 
-  @Option(name = {"-f", "--from"}, arity = 1, description = "focus in entries in target file.")
+  @Option(name = {"-f", "--from"}, arity = 1, description = "File with source file locations from where concepts will be extracted.")
   private String from = null;
 
-  @Option(name = {"-c", "--cap"}, description = "max number of elements in each group (default value: 36).")
-  private int cap  = 36;
+  @Option(name = {"-c", "--cluster"}, description = "Clusters those types matching collected words.")
+  private boolean cluster  = false;
 
-  @Option(name = {"-s", "--scope"}, description = "search scope: 0 -> classname (default); 1 -> method name; 2 -> method body.")
-  private int scope = 0;
+  @Option(name = {"-e", "--element"}, description = "Element to introspect: 0 -> classname (default); 1 -> method name; 2 -> method body.")
+  private int element = 0;
 
-  @Option(name = {"-o", "--onscreen"}, description = "displays results on screen.")
-  private boolean onScreen = false;
+  @Option(name = {"-v", "--verbose"}, description = "Prints debugging messages")
+  private boolean verbose = false;
 
-  @Option(name = {"-m", "--map"}, description = "create [types]->[words] mappings.")
-  private boolean map = false;
-
-  @Option(name = {"-mst", "--kruskal"}, description = "Use Kruskal clustering (no vectorspace).")
-  private boolean kruskal = false;
-
-//  @Option(name = {"-p", "--pruning"}, description = "Typicality-based Cluster pruning.")
-//  private boolean pruning = false;
+  @Option(name = {"-s", "--strategy"}, description = "Selects clustering strategy: 0 -> mst (default); 1 -> kmeans; 2 -> hybrid.")
+  private int strategy = 1;
 
 
   @Override public Integer call() throws Exception {
@@ -93,251 +91,275 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
         return -1;
       }
 
-      int realCap;
-      if(cap < 0){ realCap = 36; } else {
-        realCap = Math.min(cap, 36/*selected value based on trials*/);
-      }
-
       int realScope;
-      if(scope < 0 || scope > 2) { realScope = 0; } else {
-        realScope = scope;
+      if(element < 0 || element > 2) { realScope = 0; } else {
+        realScope = element;
       }
 
-      return conceptAssignment(
-        directory, from, topK, realCap,
-        realScope, onScreen, map,
-        kruskal
-      );
+      if(verbose){ BasicExecutionMonitor.get().enable(); } else {
+        BasicExecutionMonitor.get().disable();
+      }
+
+      int realStrategy;
+      if(strategy < 0 || strategy > 2) { realStrategy = 0; } else {
+        realStrategy = strategy;
+      }
+
+      final Map<Corpus<Source>, WordsTokenizer> record = generateRequiredObjects(realScope, from, directory);
+      if(record.isEmpty()) return -1;
+      final Corpus<Source> corpus     = Iterables.get(record.keySet(), 0);
+      final WordsTokenizer tokenizer  = Iterables.get(record.values(), 0);
+
+
+      // frequent, typical, and representative words
+      if(!cluster){
+        return wordCollection(topK, corpus, tokenizer);
+      } else {
+        return documentClustering(
+          topK, realStrategy, corpus, tokenizer
+        );
+      }
     }
 
     return 0;
   }
 
-  private static int conceptAssignment(String target, String from,
-          int topK, int cap, int scope, boolean onScreen,
-          boolean map, boolean kruskal) {
-
-    final List<Source> corpus = new ArrayList<>();
+  private static int documentClustering(int k, int clusteringStrategy, Corpus<Source> corpus, WordsTokenizer tokenizer){
     final Stopwatch stopwatch = Stopwatch.createStarted();
+    final ExecutionMonitor monitor = BasicExecutionMonitor.get();
 
     try {
-      // check if method file was given
-      if(from != null){
-        final Path         methods  = Paths.get(from);
-        final List<String> allLines = IO.readLines(methods);
 
-        final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
+      final Groups  groups;
 
-        final Set<String> relevantSet = Sources.populate(corpus, allLines);
-
-        final Selection.WordCollection wc = buildWordCollection(scope, relevantSet, StopWords.all());
-        final List<Word> wordList = selects(topK, corpusSet, wc).stream()
-          .sorted((a, b) -> Integer.compare(b.value(), a.value())).limit(topK)
-          .collect(Collectors.toList());
-
-        System.out.println("[INFO]: Collected " + wordList.size() + " words: " + stopwatch);
-
-        if(onScreen){
-          System.out.println(wordList);
-          System.out.println("[INFO]: Printed words: " + stopwatch);
-        } else {
-          System.out.println("Results will be displayed only if onscreen option is set to true.");
-        }
-
-      } else if (target != null){
-        final Path start = Paths.get(target);
-        corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test", "package-info")));
-
-        final Set<Source> corpusSet = corpus.stream().collect(Collectors.toSet());
-
-        System.out.println("[INFO]: Read " + corpus.size() + " files: " + stopwatch);
-
-        if(topK <= 0) {
-
-          List<Word> words = selects(
-            corpusSet,
-            wordCollection(scope, Collections.emptySet(), StopWords.all())
-          );
-
-          System.out.println("[INFO]: Collected " + words.size() + " words: " + stopwatch);
-
-          if(onScreen){
-            System.out.println(words);
-            System.out.println("[INFO]: Printed words: " + stopwatch);
-          } else {
-            System.out.println("Results will be displayed only if onscreen option is set to true.");
-          }
-
-        } else {
-
-          final Set<StopWords> SW = updatedStopWords(target);
-          System.out.println("[INFO]: Updated stopwords:  " + stopwatch);
-
-          final Selection.WordCollection wc = wordCollection(scope, Collections.emptySet(), SW);
-
-          final List<Word> words = selects(corpusSet, wc).stream()
-            .filter(w -> !StopWords.isStopWord(SW, w.element()))
-            .sorted((a, b) -> Integer.compare(b.value(), a.value())).limit(topK).collect(Collectors.toList());
-
-          System.out.println("[INFO]: Selected relevant words:  " + stopwatch);
-
-          if(!map){
-
-            if(onScreen){
-              System.out.println(words);
-              System.out.println("[INFO]: Printed words: " + stopwatch);
-            } else {
-              System.out.println("Results will be displayed only if onscreen option is set to true.");
-            }
-
-          } else {
-            final Groups  groups = kruskal ? Grouping.reformDocGroups(words) : Grouping.formDocGroups(words);
-            final Index   index  = groups.index();
-            System.out.println("[INFO]: Formed groups-of-types based on relevant words:  " + stopwatch);
-
-            final Set<Word> wordSet = words.stream().collect(Collectors.toSet());
-            final List<Mapping> mappings = new ArrayList<>();
-
-//            if(pruning) {
-//              System.out.println("[INFO]: Pruning each cluster");
-//            }
-
-            for(Group eachGroup : groups){
-              final Groups regroups = Grouping.formDocGroups(eachGroup, cap);
-
-              for(Group regroup : regroups){
-                final List<Document> ds = Group.items(regroup, Document.class);
-
-//                if(pruning){
-//                  final Grouping.Group  group  = new Grouping.BasicGroup();
-//                  ds.forEach(group::add);
-//
-//                  final Grouping.Groups refinedGroups = Grouping.refine(Grouping.Groups.of(Collections.singletonList(group)));
-//                  final Group refinedGroup = refinedGroups.groupList().get(0);
-//                  ds = Group.items(refinedGroup, Document.class);
-//                }
-
-
-                final Query.Result qr  = Query.labels(ds, SW);
-                final Query.Result qr2 = Query.types(ds, index);
-
-                final List<String> resultSet  = Query.Result.items(qr, String.class);
-                final List<String> resultSet2 = Query.Result.items(qr2, Word.class).stream()
-                  .filter(wordSet::contains)
-                  .map(Word::element)
-                  .collect(Collectors.toList());
-
-                final List<String> names      = Document.names(ds);
-
-                System.out.print(".");
-                mappings.add(new Mapping(names, resultSet, resultSet2));
-              }
-            }
-
-            System.out.println();
-            System.out.println("[INFO]: Tuned the created groups that exceeded the " + cap + " size limit: " + stopwatch);
-
-            final ResultPackage resultPackage = new ResultPackage(mappings);
-
-            final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            if(onScreen){
-              System.out.println(gson.toJson(resultPackage));
-              System.out.println("[INFO]: Printed file " + MAP_SET_CLUSTERS_NAME + " to screen: " + stopwatch);
-            } else {
-              Path newFile = Paths.get(MAP_SET_CLUSTERS_NAME);
-              Files.deleteIfExists(newFile);
-
-              Files.write(
-                newFile,
-                gson.toJson(resultPackage).getBytes(),
-                CREATE,
-                APPEND
-              );
-
-              System.out.println("[INFO]: Created/Updated file " + MAP_SET_CLUSTERS_NAME + ": " + stopwatch);
-
-            }
-          }
-
-
-
-          System.out.println("[INFO]  total elapsed time: " + stopwatch.stop());
-
-        }
-      } else {
-        System.err.println("Unable to parse your input!");
-        return -1;
+      switch (clusteringStrategy){
+        case 0:
+          monitor.info("Partitioning corpus with MST");
+          groups = Introspector.partitionCorpus(k, corpus, tokenizer);
+          break;
+        case 1:
+          monitor.info("Partitioning corpus with KMeans");
+          final List<Word> frequentOnes = Selection.topKFrequentWords(k, corpus, tokenizer);
+          groups = Grouping.groupDocsUsingWords(frequentOnes);
+          break;
+        case 2:
+          monitor.info("Partitioning corpus with hybrid approach");
+          groups = Grouping.groupDocs(corpus, tokenizer);
+          break;
+        default:
+          monitor.error("Unknown clustering strategy", new NoSuchElementException());
+          return -1;
       }
+
+      monitor.info("Formed groups-of-types based on relevant words:  " + stopwatch);
+
+      final List<Mapping> mappings = new ArrayList<>();
+
+      for(Group each : groups){
+        final List<Document>  ds    = Group.items(each, Document.class);
+
+        final boolean isNamedGroup  = each instanceof Grouping.NamedGroup;
+
+        final String          label = isNamedGroup
+          ? ((Grouping.NamedGroup) each).name()
+          : Recommend.coalesce(Recommend.labels(ds));
+
+        final List<String> names = new ArrayList<>();
+        for(Document eachDoc : ds){
+          names.add(eachDoc.toString() + "[" + eachDoc.getStart() + ", " + eachDoc.getEnd() + "]");
+        }
+
+        //final List<String> names      = Document.containers(ds);
+
+        names.forEach(s -> System.out.println("\"" + s + "\","));
+
+        final List<String> singleton  = Collections.singletonList(label);
+
+        mappings.add(new Mapping(names, singleton));
+      }
+
+      final ResultPackage resultPackage = new ResultPackage(mappings);
+      final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+      if(monitor.isActive()){ // print to screen
+        monitor.info(gson.toJson(resultPackage));
+        monitor.info("Printed file " + MAP_SET_CLUSTERS_NAME + " to screen: " + stopwatch);
+      } else {
+        Path newFile = Paths.get(MAP_SET_CLUSTERS_NAME);
+        Files.deleteIfExists(newFile);
+
+        Files.write(
+          newFile,
+          gson.toJson(resultPackage).getBytes(),
+          CREATE,
+          APPEND
+        );
+
+        monitor.info("Created/Updated file " + MAP_SET_CLUSTERS_NAME + ": " + stopwatch);
+      }
+
     } catch (Exception e){
       e.printStackTrace(System.err);
+      stopwatch.stop();
       return -1;
     }
 
+    stopwatch.stop();
     return 0;
   }
 
-  private static List<String> findLabels(final List<Document> documents, Set<StopWords> stopWords){
 
-    // we don't accept plurals and stop words
-    final List<String> allStrings = documents.stream()
-      .flatMap(s -> Arrays.asList(Strings.splits(s.shortName())).stream())
-      .map(s -> Noun.get().isPlural(s) ? Noun.get().singularOf(s) : s)
-      .filter(s -> !StopWords.isStopWord(stopWords, s))
-      .collect(Collectors.toList());
+  private static Map<Corpus<Source>, WordsTokenizer> generateRequiredObjects(int scope, String file, String directory){
+    final ExecutionMonitor monitor = BasicExecutionMonitor.get();
 
-    // frequency calculation
-    final Map<String, Integer> scores = allStrings.stream()
-      .collect(toConcurrentMap(w -> w.toLowerCase(Locale.ENGLISH), w -> 1, Integer::sum));
+    final Corpus<Source> corpusObject = Corpus.ofSources();
+    final List<Source>   corpus       = new ArrayList<>();
 
-    // sort entries in ascending order
-    Stream<Map.Entry<String, Integer>> firstPass = scores.entrySet().stream()
-      .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+    final Stopwatch stopwatch = Stopwatch.createStarted();
 
-    // if we are dealing with multiple documents, filter words
-    // whose frequency is 1
-    if(documents.size() > 1){
-      firstPass = firstPass.filter(e -> e.getValue() > 1);
+    final Set<StopWords> stopWords = updatedStopWords(directory);
+    monitor.info("Updated stopwords:  " + stopwatch);
+
+    WordsTokenizer tokenizer;
+
+    try {
+
+      if(!Objects.isNull(file) && !Objects.isNull(directory)) return Collections.emptyMap();
+
+      if(!Objects.isNull(file)){
+
+        final Path         methods      = Paths.get(file);
+        final List<String> allLines     = IO.readLines(methods);
+
+        final Set<String>  relevantSet  = Sources.populate(corpus, allLines);
+        tokenizer    = buildWordTokenizer(scope, relevantSet, stopWords);
+
+        corpusObject.addAll(corpus);
+
+        return Collections.singletonMap(corpusObject, tokenizer);
+
+      } else {
+
+
+        final Path start = Paths.get(directory);
+        corpus.addAll(Sources.from(IO.collectFiles(start, "java", "Test", "test", "package-info")));
+
+        final Set<Source> corpusSet = new HashSet<>(corpus);
+        corpusObject.addAll(corpusSet);
+
+        tokenizer = wordTokenizer(scope, Collections.emptySet(), stopWords);
+
+        return Collections.singletonMap(corpusObject, tokenizer);
+      }
+
+
+    } catch (Exception e){
+      e.printStackTrace(System.err);
+      return Collections.emptyMap();
     }
+  }
 
 
-    return firstPass.map(Map.Entry::getKey)
-      .filter(s -> s.length() > 3)
-      .collect(Collectors.toList());
+  private static int wordCollection(int topK, Corpus<Source> corpusObject, WordsTokenizer tokenizer){
+    final ExecutionMonitor monitor = BasicExecutionMonitor.get();
+    final Stopwatch stopwatch = Stopwatch.createStarted();
+
+    try {
+
+      final Map<List<Word>, List<Word>> relevantWords = Introspector.buildWordsMap(corpusObject, tokenizer);
+      if(relevantWords.isEmpty()) {
+        monitor.info("No words to report!");
+      } else {
+
+        final int keySetSize = Iterables.get(relevantWords.keySet(), 0).size();
+        final List<String> frequentOnes       = Iterables.get(relevantWords.keySet(), 0).stream()
+          .sorted((a, b) -> Integer.compare(b.count(), a.count()))
+          .limit(Math.min(topK, keySetSize))
+          .map(Word::element)
+          .collect(Collectors.toList());
+
+
+        final int valueSize = Iterables.get(relevantWords.values(), 0).size();
+        final List<String> typicalOnes = Iterables.get(relevantWords.values(), 0).stream()
+          .limit(Math.min(topK, valueSize))
+          .map(Word::element)
+          .collect(Collectors.toList());
+
+
+        List<Word> representativeOnes = Introspector.representativeWords(relevantWords);
+        final int representativeLimit = Math.min(topK, representativeOnes.size());
+        final List<String> reprOnes = representativeOnes.stream()
+          .limit(representativeLimit)
+          .map(Word::element)
+          .collect(Collectors.toList());
+
+
+        if(monitor.isActive()){
+          monitor.info("Frequent words " + Prints.toPrettyPrintedList(frequentOnes, false));
+          monitor.info("Typical words " + Prints.toPrettyPrintedList(typicalOnes, false));
+          monitor.info("Representative words " + Prints.toPrettyPrintedList(reprOnes, false));
+        } else {
+          final WordPackage wordPackage = new WordPackage(frequentOnes, typicalOnes, reprOnes);
+          final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+          Path newFile = Paths.get(MAP_SET_WORDS_NAME);
+          Files.deleteIfExists(newFile);
+
+          Files.write(
+            newFile,
+            gson.toJson(wordPackage).getBytes(),
+            CREATE,
+            APPEND
+          );
+
+          monitor.info("Created/Updated file " + MAP_SET_WORDS_NAME + ": " + stopwatch);
+        }
+      }
+
+      stopwatch.stop();
+      return 0;
+    } catch (Exception e){
+      e.printStackTrace(System.err);
+      stopwatch.stop();
+      return -1;
+    }
   }
 
   private static Set<StopWords> updatedStopWords(String target){
     final List<String> general = generalUpdate(target);
     final List<String> java    = Arrays.asList("scala", "get", "max", "message", "buffered", "comparison");
 
-    return StopWords.update(Collections.emptyList(), java, general);
+    final Set<StopWords> t = StopWords.of(StopWords.JAVA, StopWords.GENERAL);
+
+    return new HashSet<>(); //StopWords.update(Collections.emptyList(), java, Collections.emptyList());
   }
 
-  private static Selection.WordCollection buildWordCollection(int scope, Set<String> relevant, Set<StopWords> stopWords){
+  private static WordsTokenizer buildWordTokenizer(int scope, Set<String> relevant, Set<StopWords> stopWords){
     switch (scope){
       case 0:
 
         return relevant.isEmpty()
-          ? Selection.inspectClassName(stopWords)
-          : Selection.inspectClassName(relevant, stopWords);
+          ? Tokenizers.tokenizeTypeDeclarationName(stopWords)
+          : Tokenizers.tokenizeTypeDeclarationName(relevant, stopWords);
 
       case 1:
 
         return relevant.isEmpty()
-          ? Selection.inspectMethodName(stopWords)
-          : Selection.inspectMethodName(relevant, stopWords);
+          ? Tokenizers.tokenizeMethodDeclarationName(stopWords)
+          : Tokenizers.tokenizeMethodDeclarationName(relevant, stopWords);
 
       case 2:
 
         return relevant.isEmpty()
-          ? Selection.inspectMethodBody(stopWords)
-          : Selection.inspectMethodBody(relevant, stopWords);
+          ? Tokenizers.tokenizeMethodDeclarationBody(stopWords)
+          : Tokenizers.tokenizeMethodDeclarationBody(relevant, stopWords);
 
       default: throw new NoSuchElementException("Could not recognize scope option " + scope);
     }
   }
 
-  private static Selection.WordCollection wordCollection(int scope, Set<Word> relevant, Set<StopWords> stopWords){
-    return buildWordCollection(scope, relevant.stream()
+  private static WordsTokenizer wordTokenizer(int scope, Set<Word> relevant, Set<StopWords> stopWords){
+    return buildWordTokenizer(scope, relevant.stream()
       .map(Word::element)
       .collect(Collectors.toSet()), stopWords);
   }
@@ -386,12 +408,10 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
   private static class Mapping {
     List<String> types;
     List<String> labels;
-    List<String> alternative;
 
-    Mapping(List<String> types, List<String> labels, List<String> alternative){
+    Mapping(List<String> types, List<String> labels){
       this.labels = labels;
-      this.types = types;
-      this.alternative = alternative;
+      this.types  = types;
     }
 
     public List<String> getTypes() {
@@ -409,15 +429,44 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
     public void setLabels(List<String> labels) {
       this.labels = labels;
     }
-
-    public List<String> getAlternative() {
-      return alternative;
-    }
-
-    public void setAlternative(List<String> alternative) {
-      this.alternative = alternative;
-    }
   }
 
+  static class WordPackage {
+    List<String> frequent;
+    List<String> typical;
+    List<String> representative;
+
+    WordPackage(List<String> frequent, List<String> typical, List<String> representative){
+
+      this.frequent       = frequent;
+      this.typical        = typical;
+      this.representative = representative;
+
+    }
+
+    public List<String> getFrequent() {
+      return frequent;
+    }
+
+    public void setFrequent(List<String> frequent) {
+      this.frequent = frequent;
+    }
+
+    public List<String> getTypical() {
+      return typical;
+    }
+
+    public void setTypical(List<String> typical) {
+      this.typical = typical;
+    }
+
+    public List<String> getRepresentative() {
+      return representative;
+    }
+
+    public void setRepresentative(List<String> representative) {
+      this.representative = representative;
+    }
+  }
 
 }
