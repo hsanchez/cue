@@ -1,0 +1,4 @@
+#!/bin/zsh
+# with concepts .....
+
+java -jar cue.jar $*

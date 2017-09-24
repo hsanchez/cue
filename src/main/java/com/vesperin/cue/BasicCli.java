@@ -122,7 +122,7 @@ public interface BasicCli {
    * @return the new Typicality's CLI
    */
   default Cli<CliCommand> buildCli(){
-    return buildCli(Cli.<CliCommand>builder("cue")
+    return buildCli(Cli.<CliCommand>builder("with")
       .withDescription("Basic CLI")
       .withCommand(TypicalityAnalysisCommand.class)
       .withCommand(ConceptAssignmentCommand.class)
