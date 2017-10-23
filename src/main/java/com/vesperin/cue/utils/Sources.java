@@ -50,7 +50,7 @@ public class Sources {
    */
   public static Source from(File file) {
     try {
-      final String name     = Files.getNameWithoutExtension(file.getName());
+      final String name     = file.toString().replace(".java", ""); //Files.getNameWithoutExtension(file.getName());
       final String content  = Files.readLines(file, Charset.defaultCharset()).stream()
         .collect(Collectors.joining("\n"));
 

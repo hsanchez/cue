@@ -7,6 +7,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.vesperin.base.Context;
 import com.vesperin.base.Source;
 import com.vesperin.cue.BasicCli;
 import com.vesperin.cue.utils.IO;
@@ -25,20 +26,15 @@ import com.vesperin.text.spi.ExecutionMonitor;
 import com.vesperin.text.tokenizers.Tokenizers;
 import com.vesperin.text.tokenizers.WordsTokenizer;
 import com.vesperin.text.utils.Prints;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 
 import javax.inject.Inject;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.vesperin.text.Selection.Document;
@@ -51,6 +47,8 @@ import static java.nio.file.StandardOpenOption.CREATE;
 @Command(name = "concepts", description = "Recognizing implied concepts in code")
 @SuppressWarnings("FieldCanBeLocal")
 public class ConceptAssignmentCommand implements BasicCli.CliCommand {
+
+  static AtomicInteger counter = new AtomicInteger(0);
 
   private static final String MAP_SET_CLUSTERS_NAME  = "clusters.json";
   private static final String MAP_SET_WORDS_NAME     = "words.json";
@@ -77,6 +75,9 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
   @Option(name = {"-s", "--strategy"}, description = "Selects clustering strategy: 0 -> mst (default); 1 -> kmeans; 2 -> hybrid.")
   private int strategy = 1;
+
+  @Option(name = {"-fn", "--file-names"}, description = "Lists FileName-and-qualifiedName mappings.")
+  private boolean filenames  = false;
 
 
   @Override public Integer call() throws Exception {
@@ -108,6 +109,51 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
       final Map<Corpus<Source>, WordsTokenizer> record = generateRequiredObjects(realScope, from, directory);
       if(record.isEmpty()) return -1;
       final Corpus<Source> corpus     = Iterables.get(record.keySet(), 0);
+
+
+      if(filenames){
+
+        final Set<Map<String, String>> data = new HashSet<>();
+
+        for(Source each : corpus){
+          final Context e = Selection.newContext(each);
+
+          final ITypeBinding binding = ((AbstractTypeDeclaration)e.getCompilationUnit()
+            .types()
+            .get(0))
+            .resolveBinding();
+
+
+          if(binding == null){
+            System.out.println("No type binding for " + each.getName());
+            continue;
+          }
+
+          final Map<String, String> entry = new HashMap<>();
+          entry.put(each.getName(), binding.getQualifiedName());
+
+          data.add(entry);
+
+        }
+
+        final Gson gson = new GsonBuilder()
+          .setPrettyPrinting()
+          .create();
+
+        Path newFile = Paths.get("filenames.json");
+        Files.deleteIfExists(newFile);
+
+        Files.write(
+          newFile,
+          gson.toJson(data).getBytes(),
+          CREATE,
+          APPEND
+        );
+
+        return 0;
+      }
+
+
       final WordsTokenizer tokenizer  = Iterables.get(record.values(), 0);
 
 
@@ -155,6 +201,7 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
       final List<Mapping> mappings = new ArrayList<>();
 
+      //final Map<String, Set<String>> qualifyingMap = new HashMap<>();
       for(Group each : groups){
         final List<Document>  ds    = Group.items(each, Document.class);
 
@@ -172,14 +219,37 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
         //final List<String> names      = Document.containers(ds);
 
         names.forEach(s -> System.out.println("\"" + s + "\","));
+//        names.forEach(s -> {
+//
+//          int idx  = s.lastIndexOf('.');
+//          int idx2 = s.lastIndexOf('[');
+//          if(idx > 0 && idx2 > 0){
+//
+//            final String shortName = s.substring(idx + 1, idx2);
+//            if(qualifyingMap.containsKey(shortName)){
+//              qualifyingMap.get(shortName).add(s);
+//            } else {
+//              qualifyingMap.put(shortName, new HashSet<>(Collections.singletonList(s)));
+//            }
+//
+//          }
+//
+//        });
 
         final List<String> singleton  = Collections.singletonList(label);
 
         mappings.add(new Mapping(names, singleton));
       }
 
+
+//      final Gson gson0 = new GsonBuilder().setPrettyPrinting().create();
+//      System.out.println("OK");
+//      System.out.println(gson0.toJson(qualifyingMap));
+
       final ResultPackage resultPackage = new ResultPackage(mappings);
       final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+      System.out.println(String.format("INFO: Processed %d records. Expected %d records.", resultPackage.getMappings().size(), counter.get()));
 
       if(monitor.isActive()){ // print to screen
         monitor.info(gson.toJson(resultPackage));
@@ -236,6 +306,8 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
         corpusObject.addAll(corpus);
 
+        counter.compareAndSet(counter.get(), corpusObject.size());
+
         return Collections.singletonMap(corpusObject, tokenizer);
 
       } else {
@@ -246,6 +318,8 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
         final Set<Source> corpusSet = new HashSet<>(corpus);
         corpusObject.addAll(corpusSet);
+
+        counter.compareAndSet(counter.get(), corpusObject.size());
 
         tokenizer = wordTokenizer(scope, Collections.emptySet(), stopWords);
 
@@ -338,17 +412,23 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
     switch (scope){
       case 0:
 
+        System.out.println("ClassName Tokenizer");
+
         return relevant.isEmpty()
           ? Tokenizers.tokenizeTypeDeclarationName(stopWords)
           : Tokenizers.tokenizeTypeDeclarationName(relevant, stopWords);
 
       case 1:
 
+        System.out.println("MethodName Tokenizer");
+
         return relevant.isEmpty()
           ? Tokenizers.tokenizeMethodDeclarationName(stopWords)
           : Tokenizers.tokenizeMethodDeclarationName(relevant, stopWords);
 
       case 2:
+
+        System.out.println("MethodBody Tokenizer");
 
         return relevant.isEmpty()
           ? Tokenizers.tokenizeMethodDeclarationBody(stopWords)
