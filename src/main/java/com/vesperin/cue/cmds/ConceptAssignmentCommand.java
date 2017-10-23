@@ -112,45 +112,43 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
 
       if(filenames){
+        try {
+          final Set<Map<String, String>> data = new HashSet<>();
 
-        final Set<Map<String, String>> data = new HashSet<>();
+          for(Source each : corpus){
+            final Context e = Selection.newContext(each);
 
-        for(Source each : corpus){
-          final Context e = Selection.newContext(each);
-
-          final ITypeBinding binding = ((AbstractTypeDeclaration)e.getCompilationUnit()
-            .types()
-            .get(0))
-            .resolveBinding();
+            final ITypeBinding binding = ((AbstractTypeDeclaration)e.getCompilationUnit()
+              .types()
+              .get(0))
+              .resolveBinding();
 
 
-          if(binding == null){
-            System.out.println("No type binding for " + each.getName());
-            continue;
+            if(binding == null){
+              System.out.println("No type binding for " + each.getName());
+              continue;
+            }
+
+            final Map<String, String> entry = new HashMap<>();
+            entry.put(each.getName(), binding.getQualifiedName());
+
+            data.add(entry);
+
           }
 
-          final Map<String, String> entry = new HashMap<>();
-          entry.put(each.getName(), binding.getQualifiedName());
+          final Gson gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .create();
 
-          data.add(entry);
+          System.out.println(gson.toJson(data));
 
+          return 0;
+
+        } catch (Exception e){
+          e.printStackTrace(System.err);
+          return -1;
         }
 
-        final Gson gson = new GsonBuilder()
-          .setPrettyPrinting()
-          .create();
-
-        Path newFile = Paths.get("filenames.json");
-        Files.deleteIfExists(newFile);
-
-        Files.write(
-          newFile,
-          gson.toJson(data).getBytes(),
-          CREATE,
-          APPEND
-        );
-
-        return 0;
       }
 
 
