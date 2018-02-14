@@ -30,6 +30,7 @@ import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -133,7 +134,10 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
         final Set<Map<String, String>> data = new HashSet<>();
 
         for(Source each : corpus){
-          final Context e = Selection.newContext(each);
+
+          final Context e = parseJava(each);
+
+          if(e == null || e.getCompilationUnit() == null || e.isMalformed(true) ) continue;
 
           final ITypeBinding binding = ((AbstractTypeDeclaration)e.getCompilationUnit()
             .types()
@@ -275,6 +279,15 @@ public class ConceptAssignmentCommand implements BasicCli.CliCommand {
 
     stopwatch.stop();
     return 0;
+  }
+
+
+  private static Context parseJava(Source code){
+    try {
+      return Selection.newContext(code);
+    } catch (Throwable ignored){
+      return Context.createContext(code);
+    }
   }
 
 
