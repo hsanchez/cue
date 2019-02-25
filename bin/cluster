@@ -1,0 +1,4 @@
+#!/bin/zsh
+# with concepts .....
+
+java -cp ".:cue.jar:*" com.vesperin.cue.BasicCli $*

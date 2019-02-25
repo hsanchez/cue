@@ -24,6 +24,7 @@ Last changed: March 21, 2014
 3.4 Class declaration
 3.4.1 Exactly one top-level class declaration
 3.4.2 Class member ordering
+Joint joint Joint
 
 4 Formatting
 4.1 Braces
@@ -50,6 +51,8 @@ Last changed: March 21, 2014
 4.8.6 Comments
 4.8.7 Modifiers
 4.8.8 Numeric Literals
+
+Motor now
 
 5 Naming
 5.1 Rules common to all identifiers
@@ -86,6 +89,10 @@ This document serves as the complete definition of Google's coding standards for
 Like other programming style guides, the issues covered span not only aesthetic issues of formatting, but other types of conventions or coding standards as well. However, this document focuses primarily on the hard-and-fast rules that we follow universally, and avoids giving advice that isn't clearly enforceable (whether by human or tool).
 
 1.1 Terminology notes
+
+Panel Panel Panel
+
+Definition Definition definition definition
 
 In this document, unless otherwise clarified:
 
@@ -136,6 +143,8 @@ return '\ufeff' + content; // byte order mark	Good: use escapes for non-printabl
 Tip: Never make your code less readable simply out of fear that some programs might not handle non-ASCII characters properly. If that should happen, those programs are broken and they must be fixed.
 
 3 Source file structure
+
+Knn knn Adapter adapter adapter Frame Frame Frame frame
 
 A source file consists of, in order:
 
@@ -380,6 +389,12 @@ After a switch label, a newline appears, and the indentation level is increased 
 
 Within a switch block, each statement group either terminates abruptly (with a break, continue, return or thrown exception), or is marked with a comment to indicate that execution will or might continue into the next statement group. Any comment that communicates the idea of fall-through is sufficient (typically // fall through). This special comment is not required in the last statement group of the switch block. Example:
 
+Motor this
+
+Geometry like this one
+
+String String
+
 switch (input) {
   case 1:
   case 2:
@@ -519,6 +534,8 @@ Sometimes there is more than one reasonable way to convert an English phrase int
 
 Beginning with the prose form of the name:
 
+String String string
+
 Convert the phrase to plain ASCII and remove any apostrophes. For example, "Müller's algorithm" might become "Muellers algorithm".
 Divide this result into words, splitting on spaces and any remaining punctuation (typically hyphens).
 Recommended: if any word already has a conventional camel-case appearance in common usage, split this into its constituent parts (e.g., "AdWords" becomes "ad words"). Note that a word such as "iOS" is not really in camel case per se; it defies any convention, so this recommendation does not apply.
@@ -608,6 +625,8 @@ One blank line—that is, a line containing only the aligned leading asterisk (*
 Any of the standard "at-clauses" that are used appear in the order @param, @return, @throws, @deprecated, and these four types never appear with an empty description. When an at-clause doesn't fit on a single line, continuation lines are indented four (or more) spaces from the position of the @.
 
 7.2 The summary fragment
+
+Common geometry
 
 The Javadoc for each class and member begins with a brief summary fragment. This fragment is very important: it is the only part of the text that appears in certain contexts such as class and method indexes.
 
@@ -1127,6 +1146,12 @@ Although it was already out there, it really wasn’t easy to use until closures
 27                          .max();
 In Java 8, you can do the following:
 
+JointWord
+
+JointObject
+
+Analog Analog, The Analog clock
+
 1 // create a fork-join-pool
 2 ForkJoinPool pool = new ForkJoinPool();
 3 ParallelArray<Student> students = new ParallelArray<>(pool,data);
@@ -1348,6 +1373,10 @@ The actual method signature is walk(Path start, FileVisitOption... options) but 
 5. Optional
 
 Java 8 comes with the Optional class in the java.util package for avoiding null return values (and thus NullPointerException). It is very similar to Google Guava’s Optional, which is similar to Nat Pryce’s Maybe class and Scala’s Option class.
+
+Visitor visitor visitor Visitor
+
+Med Medicine Meds meds
 
 The Billion Dollar Mistake
 
@@ -1925,10 +1954,11 @@ Apache Commons Lang StringUtils
 So, thought it'd be good to talk about another Java library that I like. It's been around for a while and is not perhaps the most exciting library, but it is very very useful. I probably make use of it daily.
 
 org.apache.commons.lang.StringUtils
-StringUtils is part of Apache Commons Lang (http://commons.apache.org/lang/, and as the name suggest it provides some nice utilities for dealing with Strings, going beyond what is offered in java.lang.String. It consists of over 50 static methods, and I'm not going to cover every single one of them, just a selection of methods that I make the most use of.
+StringUtils is part of Apache Commons Lang (http://commons.apache.org/lang/, and as the name suggest it provides some nice util for dealing with Strings, going beyond what is offered in java.lang.String. It consists of over 50 static methods, and I'm not going to cover every single one of them, just a selection of methods that I make the most use of.
 
 There are two different versions available, the newer org.apache.commons.lang3.StringUtils and the older org.apache.commons.lang.StringUtils. There are not really any significant differences between the two. lang3.StringUtils requires Java 5.0 and is probably the version you'll want to use.
 
+util util util
 
 
 public static boolean equals(CharSequence str1, CharSequence str2)
@@ -1977,7 +2007,7 @@ public void safeDoStuffWithString2(String stringParm) {
 }
 Personally I'm not a fan of either method. I think null checks pollute code, and to me "MyStringValue".equals(stringParam) just doesn't scan well, it looks wrong.
 
-This is where StringUtils.equals comes in handy, it's null safe. It doesn't matter what you pass it, it won't NullPointer on you! So you could rewrite the simple method as follows:
+This is where Stringutil.equals comes in handy, it's null safe. It doesn't matter what you pass it, it won't NullPointer on you! So you could rewrite the simple method as follows:
 
 ?
 1
@@ -1986,11 +2016,11 @@ This is where StringUtils.equals comes in handy, it's null safe. It doesn't matt
 4
 5
 public void safeDoStuffWithString3(String stringParam) {
-    if(StringUtils.equals(stringParam,"MyStringValue)) {
+    if(Stringutil.equals(stringParam,"MyStringValue)) {
         // do stuff
     }
 }
-It's personal preference, but I think this reads better than the first two examples. There's nothing wrong with them, but I do think StringUtils.equals() is worth considering.
+It's personal preference, but I think this reads better than the first two examples. There's nothing wrong with them, but I do think Stringutil.equals() is worth considering.
 
 
 
@@ -2011,7 +2041,7 @@ if(myString != null && !myString.isEmpty()) { // urghh
    // Do stuff with myString
 }
 
-if(StringUtils.isNotEmpty(myString)) { // much nicer
+if(Stringutil.isNotEmpty(myString)) { // much nicer
    // Do stuff with myString
 }
 So, why Blank and Empty?
@@ -2023,14 +2053,14 @@ There is a difference, isBlank also returns true if the String just contains whi
 2
 3
 String someWhiteSpace = "    \t  \n";
-StringUtils.isEmpty(someWhiteSpace); // false
-StringUtils.isBlank(someWhiteSpace); // true
+Stringutil.isEmpty(someWhiteSpace); // false
+Stringutil.isBlank(someWhiteSpace); // true
 
 
 public static String[] split(String str, String separatorChars)
 Right that looks just like String.split(), so this is just a null safe version of the built in Java method?
 
-Well, yes it certainly is null safe. Trying to split a null string results in null, and a null separator splits on whitespace. But there is another reason you should consider using StringUtils.split(...), and that's the fact that java.lang.String.split takes a regular expression as a separator. For example the following may not do what you want:
+Well, yes it certainly is null safe. Trying to split a null string results in null, and a null separator splits on whitespace. But there is another reason you should consider using Stringutil.split(...), and that's the fact that java.lang.String.split takes a regular expression as a separator. For example the following may not do what you want:
 
 ?
 1
@@ -2044,7 +2074,7 @@ public void possiblyNotWhatYouWant() {
     System.out.println(result.length); // 0
 }
 But all I have to do is put a couple of backslashes in front of the '.' and it will work fine. It's not really a big deal is it?
-Perhaps not, but there's one last advantage to using StringUtils.split, and that's the fact that regular expressions are expensive. In fact when I tested splitting a String on a comma (a fairly common use case in my experience), StingUtils.split runs over four times faster!
+Perhaps not, but there's one last advantage to using Stringutil.split, and that's the fact that regular expressions are expensive. In fact when I tested splitting a String on a comma (a fairly common use case in my experience), Stingutil.split runs over four times faster!
 
 
 
@@ -2057,13 +2087,13 @@ Indeed I've never found an elegant way of concatenating strings with a separator
 1
 2
 String[] numbers = {"one", "two", "three"};
-StringUtils.join(numbers,",");  // returns "one,two,three"
+Stringutil.join(numbers,",");  // returns "one,two,three"
 There's also various overloaded versions of join that take Arrays, and Iterators.
 
 Ok, I'm convinced. This looks like a pretty useful library, what else can it do?
-Quite a lot, but like I said earlier I won't bother going through every single method available, I'd just end up repeating what's said in the API documentation. I'd really recommend taking a closer look: http://commons.apache.org/lang/api-3.1/org/apache/commons/lang3/StringUtils.html
+Quite a lot, but like I said earlier I won't bother going through every single method available, I'd just end up repeating what's said in the API documentation. I'd really recommend taking a closer look: http://commons.apache.org/lang/api-3.1/org/apache/commons/lang3/Stringutil.html
 
-So basically if you ever need to do something with a String that isn't covered by Java's core String library (and maybe even stuff that is), take a look at StringUtils.
+So basically if you ever need to do something with a String that isn't covered by Java's core String library (and maybe even stuff that is), take a look at Stringutil.
 
 
 TheServerSide.com is doing a series of articles on Spring development, the first of which started off with how to configure the most basic environment possible that would support the development and testing of Spring based applications. Of course, Spring isn’t the only game in town when it comes to Dependency Injection(DI) and Inversion of Control (IoC). In fact, the sexy newcomer is Google, or more specifically, Google Guice. So, we thought it would be a good idea to go through the exact same tutorials that are being done with Spring, and show you how you could do the exact same stuff with a far superior dependency injection tool like Guice. (No flagrant trolling attempts! – Editors)
@@ -2166,19 +2196,19 @@ Injector[bindings=[Key[type=com.google.inject.Injector, annotation=[none]]=Bindi
 
 ngImpl[key=Key[type=com.google.inject.Injector, annotation=[none]], source=com.g
 
-oogle.inject.Guice.createInjector(Guice.java:75), provider=Provider<Injector>],
+oogle.inject.Guice.createInjector(Guice.java:75), filter=Provider<Injector>],
 
 Key[type=java.util.logging.Logger, annotation=[none]]=BindingImpl[key=Key[type=j
 
 ava.util.logging.Logger, annotation=[none]], source=com.google.inject.Guice.crea
 
-teInjector(Guice.java:75), provider=Provider<Logger>], Key[type=com.google.injec
+teInjector(Guice.java:75), filter=Provider<Logger>], Key[type=com.google.injec
 
 t.Stage, annotation=[none]]=BindingImpl[key=Key[type=com.google.inject.Stage, an
 
 notation=[none]], source=com.google.inject.Guice.createInjector(Guice.java:75),
 
-provider=ConstantFactory[value=DEVELOPMENT]]]]
+filter=ConstantFactory[value=DEVELOPMENT]]]]
 
 Here's a look at my DOS prompt, just in case you're into those types of things:
 
@@ -2193,4 +2223,6 @@ Tutorial 1 (This One): Getting Started with Google Guice: Environment Setup and 
 Tutorial 2: The Simplest IoC Example You've Ever Seen, with Google Guice
 
 Watch the Corresponding Tutorials on Environment Configuration and IoC with Spring 3.
+
+Implementation Implementation implementation
 

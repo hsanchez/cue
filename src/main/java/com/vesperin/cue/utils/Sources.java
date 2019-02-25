@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
  */
 public class Sources {
   private static final JavaParser PARSER = new EclipseJavaParser();
+  private static final String PACKAGE_INFO = "package-info";
 
   private Sources(){
     throw new Error("Cannot be instantiated");
@@ -48,7 +50,7 @@ public class Sources {
    */
   public static Source from(File file) {
     try {
-      final String name     = Files.getNameWithoutExtension(file.getName());
+      final String name     = file.toString().replace(".java", ""); //Files.getNameWithoutExtension(file.getName());
       final String content  = Files.readLines(file, Charset.defaultCharset()).stream()
         .collect(Collectors.joining("\n"));
 
@@ -65,7 +67,12 @@ public class Sources {
    * @return the list source objects.
    */
   public static List<Source> from(List<File> files) {
-    return files.stream().map(Sources::from).collect(Collectors.toList());
+    final Predicate<Source> noPackageInfoFiles = s -> !PACKAGE_INFO.equals(s.getName());
+
+    return files.stream()
+      .map(Sources::from)
+      .filter(noPackageInfoFiles)
+      .collect(Collectors.toList());
   }
 
   /**
